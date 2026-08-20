@@ -19,12 +19,33 @@ let client: postgres.Sql | null = null;
 function getClient(): postgres.Sql {
 	if (client) return client;
 
-	const connectionString = env('POSTGRES_URL');
-	if (!connectionString) {
+	// Accept any of the names Vercel's Postgres integrations produce.
+	//
+	// The variable a Neon/Vercel integration creates depends on which provider
+	// was chosen and what "custom prefix" was set when connecting, so hard-coding
+	// one name means a correctly-connected database can still look unreachable.
+	// That failure is near-invisible from the outside: the image routes fall back
+	// to a blank spacer, so signatures simply lose their banner with no error.
+	//
+	// Order matters — POSTGRES_URL first, since that is what .env.example
+	// documents and what a manually-set value would use.
+	const candidates = [
+		'POSTGRES_URL',
+		'DATABASE_URL',
+		'STORAGE_URL',
+		'POSTGRES_PRISMA_URL',
+		'POSTGRES_URL_NON_POOLING',
+	];
+
+	const found = candidates.find((key) => env(key));
+	if (!found) {
 		throw new Error(
-			'POSTGRES_URL is not set. Run `vercel env pull .env` or copy .env.example to .env.',
+			`No Postgres connection string found. Set one of: ${candidates.join(', ')}. ` +
+				'Locally, copy .env.example to .env; on Vercel, connect a Postgres store.',
 		);
 	}
+
+	const connectionString = env(found)!;
 
 	client = postgres(connectionString, {
 		max: 1,
