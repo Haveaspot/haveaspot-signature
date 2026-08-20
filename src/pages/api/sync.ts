@@ -3,6 +3,7 @@ import { upsertSignature } from '../../lib/db';
 import { resolveCtaConfig } from '../../lib/campaigns';
 import { getSettings } from '../../lib/settings';
 import { renderSignature } from '../../lib/signature-html';
+import { env } from '../../lib/env';
 
 export const prerender = false;
 
@@ -46,7 +47,7 @@ export const POST: APIRoute = async ({ request, url }) => {
 
 	// Domain guard — this tool writes to the company CRM, so only staff
 	// addresses may create records (mirrors the plugin's @settlin.io check).
-	const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN ?? 'haveaspot.com';
+	const allowedDomain = env('ALLOWED_EMAIL_DOMAIN') ?? 'haveaspot.com';
 	if (!email.endsWith(`@${allowedDomain}`)) {
 		return Response.json(
 			{ ok: false, error: `Please use your @${allowedDomain} email address.` },
@@ -85,7 +86,7 @@ export const POST: APIRoute = async ({ request, url }) => {
 	]);
 
 	// Absolute URLs are required: these end up in an email read elsewhere.
-	const baseUrl = (process.env.PUBLIC_SITE_URL ?? url.origin).replace(/\/$/, '');
+	const baseUrl = (env('PUBLIC_SITE_URL') ?? url.origin).replace(/\/$/, '');
 
 	const html = renderSignature({ fields, config, settings, baseUrl });
 

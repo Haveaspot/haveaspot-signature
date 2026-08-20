@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { sql } from '../../../lib/db';
+import { env } from '../../../lib/env';
 
 export const prerender = false;
 
@@ -24,7 +25,7 @@ export const prerender = false;
 export const GET: APIRoute = async ({ request }) => {
 	// Vercel Cron sends the deployment's CRON_SECRET as a bearer token; without
 	// this check the endpoint would be publicly callable.
-	const secret = process.env.CRON_SECRET;
+	const secret = env('CRON_SECRET');
 	const auth = request.headers.get('authorization');
 
 	if (!secret || auth !== `Bearer ${secret}`) {

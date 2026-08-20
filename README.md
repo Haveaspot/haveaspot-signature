@@ -115,6 +115,38 @@ The real delay before a change reaches inboxes is the CDN cache on the image
 routes — `s-maxage=300`, so up to **5 minutes**. Lower that TTL if campaigns ever
 need to turn over faster; changing the cron frequency would achieve nothing.
 
+## Admin area
+
+`/admin` is behind a single shared password in `ADMIN_PASSWORD`. Generate one
+with `openssl rand -base64 24` — it is the only thing protecting staff contact
+details and analytics, so it needs to be long and random.
+
+How it is put together, and why:
+
+- **Deny by default.** `src/middleware.ts` gates everything under `/admin`, with
+  the login page as the one explicit exception. New admin pages are protected
+  the moment they are created — no per-page guard to forget.
+- **Sessions are signed cookies**, HttpOnly, `SameSite=Lax`, scoped to `/admin`,
+  8 hour expiry. No session table.
+- **The signing key is derived from the password.** Rotating `ADMIN_PASSWORD`
+  therefore signs everyone out immediately, which is what you want when someone
+  leaves or the password leaks. It also keeps setup to one variable.
+- **Login attempts are throttled** per address (10 failures, 15 minute lockout),
+  counted in Postgres because serverless invocations share no memory.
+- **The throttle fails open** if the database is unreachable. That is deliberate:
+  the password is the actual gate and needs no database, whereas failing closed
+  would lock you out of the dashboard whose job is to report that the database
+  is down.
+- **Logout is POST only**, so another site cannot sign you out with an image tag.
+
+Astro's built-in origin check rejects cross-site form posts, so the login form
+is CSRF-protected without extra work. (If you ever test it with `curl`, pass
+`-H "Origin: <site url>"` or you will get a confusing 403.)
+
+Swapping the shared password for emailed one-time codes later means replacing
+`verifyPassword` and the login form only — the session layer is deliberately
+independent of how someone proves who they are.
+
 ## Deployment
 
 Push to `main`; Vercel builds and deploys. Before the first deploy set these
@@ -124,6 +156,7 @@ environment variables in the Vercel project:
 - `CRON_SECRET` — `openssl rand -hex 32`
 - `PUBLIC_SITE_URL` — `https://sig.haveaspot.com`
 - `ALLOWED_EMAIL_DOMAIN` — `haveaspot.com`
+- `ADMIN_PASSWORD` — `openssl rand -base64 24`
 
 `PUBLIC_SITE_URL` must be the live domain. Every image and link is baked into
 the signature as an absolute URL, and a `localhost` URL in a colleague's Gmail
@@ -131,9 +164,10 @@ resolves to nothing.
 
 ## Still to build
 
-- `/admin` — CRUD for signatures, departments, campaigns and settings, plus the
-  analytics dashboard (the plugin had Chart.js timeline and asset breakdowns).
-  All routes are currently unauthenticated; **admin must not ship without auth**.
+- `/admin` — the CRUD screens for signatures, departments, campaigns and
+  settings, plus the analytics dashboard (the plugin had a Chart.js timeline and
+  asset breakdowns). Authentication and the dashboard shell are in place; the
+  screens themselves are not built yet.
 - Rate limiting on `/api/sync`.
 - Promo images assume a 3:1 aspect ratio; the upload UI should enforce it, or
   the renderer should read real dimensions.

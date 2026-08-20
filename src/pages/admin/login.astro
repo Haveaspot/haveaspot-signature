@@ -1,0 +1,94 @@
+---
+import '../../styles/global.css';
+import {
+	COOKIE_NAME,
+	verifyPassword,
+	createSessionToken,
+	sessionCookieOptions,
+	isLockedOut,
+	recordAttempt,
+	LOCKOUT_MESSAGE,
+} from '../../lib/auth';
+
+export const prerender = false;
+
+let error = '';
+
+/**
+ * Only relative paths are accepted as a redirect target. Taking the value
+ * straight from the query string would let a crafted link bounce someone to an
+ * external site straight after login — a classic open-redirect phish.
+ */
+const rawNext = Astro.url.searchParams.get('next') ?? '/admin';
+const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/admin';
+
+if (Astro.request.method === 'POST') {
+	const headers = Astro.request.headers;
+
+	if (await isLockedOut(headers)) {
+		error = LOCKOUT_MESSAGE;
+	} else {
+		const form = await Astro.request.formData();
+		const password = String(form.get('password') ?? '');
+
+		if (verifyPassword(password)) {
+			await recordAttempt(headers, true);
+			Astro.cookies.set(COOKIE_NAME, createSessionToken(), sessionCookieOptions());
+			return Astro.redirect(next, 302);
+		}
+
+		await recordAttempt(headers, false);
+		// Deliberately vague: a specific message would confirm to someone probing
+		// that they had found a valid state.
+		error = 'Incorrect password.';
+	}
+}
+---
+
+<html lang="en-GB">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="robots" content="noindex, nofollow" />
+		<title>Admin sign in — Haveaspot Signatures</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+			rel="stylesheet"
+		/>
+	</head>
+	<body>
+		<main class="page page--narrow">
+			<h1>Admin sign in</h1>
+			<p class="lede">Signature settings, campaigns and analytics.</p>
+
+			<section class="panel">
+				<form method="POST">
+					<div class="field">
+						<label for="password">Shared password</label>
+						<!-- autofocus so the keyboard is ready; this is the only field -->
+						<input
+							id="password"
+							name="password"
+							type="password"
+							autocomplete="current-password"
+							required
+							autofocus
+						/>
+					</div>
+
+					<div class="actions">
+						<button type="submit" class="btn">Sign in</button>
+						{error && <span class="status status--error">{error}</span>}
+					</div>
+				</form>
+			</section>
+
+			<p class="footnote">
+				Signing in gives access to staff contact details and click analytics.
+				Do not share this password outside the team.
+			</p>
+		</main>
+	</body>
+</html>

@@ -136,6 +136,27 @@ CREATE TABLE IF NOT EXISTS clicks (
   visitor_hash   text NOT NULL DEFAULT ''
 );
 
+-- -----------------------------------------------------------------------------
+-- Admin login throttling
+--
+-- The admin area is behind a single shared password, which is guessable given
+-- unlimited attempts. Failures are counted per address here rather than in
+-- memory because serverless invocations share no state — an in-process counter
+-- would reset on every cold start and protect nothing.
+--
+-- Only a salted hash of the address is stored, never the address itself.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS admin_login_attempts (
+  id            bigserial PRIMARY KEY,
+  attempted_at  timestamptz NOT NULL DEFAULT now(),
+  ip_hash       text NOT NULL,
+  succeeded     boolean NOT NULL DEFAULT false
+);
+
+CREATE INDEX IF NOT EXISTS admin_login_attempts_lookup_idx
+  ON admin_login_attempts (ip_hash, attempted_at DESC)
+  WHERE succeeded = false;
+
 CREATE INDEX IF NOT EXISTS clicks_time_idx ON clicks (clicked_at DESC);
 CREATE INDEX IF NOT EXISTS clicks_sender_idx ON clicks (sender_email);
 CREATE INDEX IF NOT EXISTS clicks_campaign_idx ON clicks (campaign_id);

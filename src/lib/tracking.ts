@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { sql, getSignatureByEmail, getDepartmentIds } from './db';
+import { env } from './env';
 
 export type AssetType =
 	| 'cta_default'
@@ -70,7 +71,7 @@ export function hashVisitor(headers: Headers): string {
 		headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
 		headers.get('x-real-ip') ??
 		'0.0.0.0';
-	const salt = process.env.CRON_SECRET ?? 'has-signature';
+	const salt = env('CRON_SECRET') ?? 'has-signature';
 	return createHash('sha256').update(`${ip}${salt}`).digest('hex');
 }
 

@@ -1,4 +1,5 @@
 import postgres from 'postgres';
+import { env } from './env';
 
 /**
  * Postgres client.
@@ -18,7 +19,7 @@ let client: postgres.Sql | null = null;
 function getClient(): postgres.Sql {
 	if (client) return client;
 
-	const connectionString = process.env.POSTGRES_URL;
+	const connectionString = env('POSTGRES_URL');
 	if (!connectionString) {
 		throw new Error(
 			'POSTGRES_URL is not set. Run `vercel env pull .env` or copy .env.example to .env.',

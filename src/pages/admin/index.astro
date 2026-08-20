@@ -1,0 +1,118 @@
+---
+import '../../styles/global.css';
+import { sql } from '../../lib/db';
+
+export const prerender = false;
+
+/**
+ * Admin dashboard.
+ *
+ * Access is enforced by src/middleware.ts, not here — every page under /admin
+ * is gated by default, so this file carries no auth logic of its own.
+ *
+ * Currently a status overview. The CRUD screens for signatures, departments,
+ * campaigns and settings, plus the analytics charts, land on top of this.
+ */
+
+interface Counts {
+	signatures: number;
+	departments: number;
+	campaigns: number;
+	live_campaigns: number;
+	clicks: number;
+	settings: number;
+}
+
+let counts: Counts | null = null;
+let dbError = '';
+
+try {
+	const rows = await sql<Counts[]>`
+		SELECT
+			(SELECT count(*) FROM signatures)::int   AS signatures,
+			(SELECT count(*) FROM departments)::int  AS departments,
+			(SELECT count(*) FROM campaigns)::int    AS campaigns,
+			(SELECT count(*) FROM campaigns
+			  WHERE is_deactivated = false
+			    AND starts_at IS NOT NULL AND ends_at IS NOT NULL
+			    AND now() BETWEEN starts_at AND ends_at)::int AS live_campaigns,
+			(SELECT count(*) FROM clicks)::int       AS clicks,
+			(SELECT count(*) FROM settings)::int     AS settings
+	`;
+	counts = rows[0] ?? null;
+} catch (error) {
+	// Surfaced rather than swallowed: unlike the email-facing routes, an admin
+	// looking at a dashboard is far better served by the actual error than by a
+	// page that quietly shows zeroes.
+	dbError = error instanceof Error ? error.message : String(error);
+}
+---
+
+<html lang="en-GB">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="robots" content="noindex, nofollow" />
+		<title>Admin — Haveaspot Signatures</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+			rel="stylesheet"
+		/>
+	</head>
+	<body>
+		<main class="page">
+			<div class="admin-header">
+				<div>
+					<h1>Signature admin</h1>
+					<p class="lede">Staff records, campaigns and click analytics.</p>
+				</div>
+				<form method="POST" action="/admin/logout">
+					<button type="submit" class="btn btn--secondary">Sign out</button>
+				</form>
+			</div>
+
+			{
+				dbError ? (
+					<section class="panel panel--error">
+						<h2>Database unavailable</h2>
+						<p>The admin area cannot reach Postgres. Nothing below will work until this is fixed.</p>
+						<pre class="error-detail">{dbError}</pre>
+						<p class="footnote">
+							Usually one of: no Postgres store linked to the project,
+							<code>POSTGRES_URL</code> missing, a deploy that predates the variable
+							being added, or the schema never applied (<code>npm run db:push</code>).
+						</p>
+					</section>
+				) : (
+					<>
+						<div class="stat-grid">
+							<div class="stat"><span class="stat-value">{counts?.signatures ?? 0}</span><span class="stat-label">Staff signatures</span></div>
+							<div class="stat"><span class="stat-value">{counts?.departments ?? 0}</span><span class="stat-label">Departments</span></div>
+							<div class="stat"><span class="stat-value">{counts?.campaigns ?? 0}</span><span class="stat-label">Campaigns</span></div>
+							<div class="stat"><span class="stat-value">{counts?.live_campaigns ?? 0}</span><span class="stat-label">Live now</span></div>
+							<div class="stat"><span class="stat-value">{counts?.clicks ?? 0}</span><span class="stat-label">Clicks logged</span></div>
+							<div class="stat"><span class="stat-value">{counts?.settings ?? 0}</span><span class="stat-label">Settings saved</span></div>
+						</div>
+
+						<section class="panel">
+							<h2>Not built yet</h2>
+							<p class="footnote">
+								These screens are still to come. Until then the tool runs on its
+								built-in defaults, which is why <strong>Settings saved</strong> may
+								read zero — that is expected, not a fault.
+							</p>
+							<ul class="steps">
+								<li>Staff records — add, edit and assign departments</li>
+								<li>Campaigns — schedule and target the signature banner</li>
+								<li>Settings — CTA text, button, links and disclaimer</li>
+								<li>Analytics — clicks over time, by asset, device and client</li>
+							</ul>
+						</section>
+					</>
+				)
+			}
+		</main>
+	</body>
+</html>

@@ -1,9 +1,10 @@
 ---
 import '../styles/global.css';
+import { env } from '../lib/env';
 
 export const prerender = false;
 
-const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN ?? 'haveaspot.com';
+const allowedDomain = env('ALLOWED_EMAIL_DOMAIN') ?? 'haveaspot.com';
 ---
 
 <html lang="en-GB">
