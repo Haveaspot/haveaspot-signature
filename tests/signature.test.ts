@@ -4,6 +4,8 @@ import {
 	ICON_COUNT,
 	ICON_PILL_WIDTH,
 	LOGO_PILL_WIDTH,
+	PILL_HEIGHT,
+	PILL_GAP,
 } from '../src/lib/signature-html.ts';
 import { SETTING_DEFAULTS } from '../src/lib/settings.ts';
 import { estimateLines, headingLines } from '../src/lib/og.ts';
@@ -108,6 +110,31 @@ checks.push([
 	(html.match(/class="hsig-icon"/g) ?? []).length === ICON_COUNT,
 ]);
 checks.push(['icon pill shares the pill styling', html.includes('hsig-icon-pill')]);
+
+// The right column mirrors the left column's 44 / 10 / 44 bands so the name and
+// title centre against the logo pill and the contact line against the icon
+// pill. Two banded cells on each side, and the gap rows share one constant.
+{
+	const bandCells = (html.match(new RegExp(`height:${PILL_HEIGHT}px`, 'g')) ?? []).length;
+	const gapRows = (html.match(new RegExp(`height:${PILL_GAP}px`, 'g')) ?? []).length;
+	checks.push([`right column mirrors the pill bands (${bandCells} banded cells)`, bandCells === 2]);
+	checks.push([`both columns share one gap (${gapRows} gap rows)`, gapRows === 2]);
+}
+// With no job title the name must still centre in its band rather than ride to
+// the top — which is what a hand-tuned margin would have done.
+{
+	const noTitle = renderSignature({
+		fields: { ...fields, jobTitle: '' },
+		config: baseConfig,
+		settings,
+		baseUrl: 'https://x.test',
+		version: 'test',
+	});
+	checks.push([
+		'banded layout survives a missing job title',
+		(noTitle.match(new RegExp(`height:${PILL_HEIGHT}px`, 'g')) ?? []).length === 2,
+	]);
+}
 checks.push([
 	'both pills invert in dark mode',
 	/\.hsig-logo-pill, \.hsig-icon-pill \{/.test(html),

@@ -54,6 +54,21 @@ export const LOGO_PILL_PADDING_X = 18;
 /** 1px border on each side, common to both pills. */
 const PILL_BORDERS = 2;
 
+/**
+ * The two-band rhythm of the header.
+ *
+ * The left column is a 44px pill, a 10px gap, then another 44px pill. The right
+ * column mirrors those exact bands — name and title in the first, contact
+ * details in the second — with the content vertically centred inside each.
+ *
+ * Mirroring the structure rather than nudging margins is what makes the
+ * alignment hold when fields are missing: with no job title the name simply
+ * centres in its 44px band instead of drifting upward, which is what happened
+ * when the spacing was tuned by hand for the everything-present case.
+ */
+export const PILL_HEIGHT = 44;
+export const PILL_GAP = 10;
+
 /** Rendered width of each pill. Equal by construction — asserted in tests. */
 export const ICON_PILL_WIDTH =
 	ICON_COUNT * ICON_SIZE + (ICON_COUNT - 1) * ICON_GAP + ICON_PILL_PADDING_X * 2 + PILL_BORDERS;
@@ -228,7 +243,7 @@ export function renderSignature(opts: {
 								</td>
 							</tr>
 							<tr>
-								<td style="height:10px; font-size:0; line-height:0;">&nbsp;</td>
+								<td style="height:${PILL_GAP}px; font-size:0; line-height:0;">&nbsp;</td>
 							</tr>
 							<tr>
 								<td class="hsig-icon-pill" align="center" valign="middle" bgcolor="${brand.surface}" style="${pillStyle} padding:11px ${ICON_PILL_PADDING_X}px; font-size:0; line-height:0;">
@@ -287,19 +302,32 @@ export function renderSignature(opts: {
 		<td class="hsig-td" style="padding:0 0 28px 0; background-color:${brand.white}; border-collapse:collapse; text-align:left;">
 			<table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
 				<tr>
-					<td class="hsig-td" width="${LOGO_PILL_WIDTH}" valign="middle" align="left" style="width:${LOGO_PILL_WIDTH}px; min-width:${LOGO_PILL_WIDTH}px; padding:0 24px 0 0; text-align:left; vertical-align:middle;">
+					<td class="hsig-td" width="${LOGO_PILL_WIDTH}" valign="top" align="left" style="width:${LOGO_PILL_WIDTH}px; min-width:${LOGO_PILL_WIDTH}px; padding:0 24px 0 0; text-align:left; vertical-align:top;">
 						${logoHtml}
 					</td>
-					<td class="hsig-td" valign="middle" align="left" style="padding:0; text-align:left; vertical-align:middle;">
-						<p class="hsig-name" style="margin:0 0 2px 0; font-family:${emailFontStack}; font-size:18px; line-height:1.25; text-align:left; font-weight:700; color:${brand.ink}; font-synthesis:none;">${esc(`${fields.firstName} ${fields.lastName}`.trim())}</p>
-						${
-							fields.jobTitle
-								? `<p class="hsig-txt" style="margin:0 0 10px 0; font-family:${emailFontStack}; font-size:14px; font-weight:300; line-height:1.4; text-align:left; color:${brand.ink};">${esc(fields.jobTitle)}</p>`
-								: ''
-						}
-						<p class="hsig-txt" style="margin:0; font-family:${emailFontStack}; font-size:13px; font-weight:300; line-height:1.5; text-align:left; color:${brand.ink};">
-							<a class="hsig-link" href="mailto:${esc(email)}" style="color:${brand.ink}; text-decoration:none;">${esc(email)}</a>${phoneParts}
-						</p>
+					<td class="hsig-td" valign="top" align="left" style="padding:0; text-align:left; vertical-align:top;">
+						<table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
+							<tr>
+								<td class="hsig-td" height="${PILL_HEIGHT}" valign="middle" align="left" style="height:${PILL_HEIGHT}px; text-align:left; vertical-align:middle;">
+									<p class="hsig-name" style="margin:0 0 2px 0; font-family:${emailFontStack}; font-size:18px; line-height:1.25; text-align:left; font-weight:700; color:${brand.ink}; font-synthesis:none;">${esc(`${fields.firstName} ${fields.lastName}`.trim())}</p>
+									${
+										fields.jobTitle
+											? `<p class="hsig-txt" style="margin:0; font-family:${emailFontStack}; font-size:14px; font-weight:300; line-height:1.4; text-align:left; color:${brand.ink};">${esc(fields.jobTitle)}</p>`
+											: ''
+									}
+								</td>
+							</tr>
+							<tr>
+								<td style="height:${PILL_GAP}px; font-size:0; line-height:0;">&nbsp;</td>
+							</tr>
+							<tr>
+								<td class="hsig-td" height="${PILL_HEIGHT}" valign="middle" align="left" style="height:${PILL_HEIGHT}px; text-align:left; vertical-align:middle;">
+									<p class="hsig-txt" style="margin:0; font-family:${emailFontStack}; font-size:13px; font-weight:300; line-height:1.5; text-align:left; color:${brand.ink};">
+										<a class="hsig-link" href="mailto:${esc(email)}" style="color:${brand.ink}; text-decoration:none;">${esc(email)}</a>${phoneParts}
+									</p>
+								</td>
+							</tr>
+						</table>
 					</td>
 				</tr>
 			</table>
