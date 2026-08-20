@@ -4,17 +4,22 @@ import { sql } from '../../../lib/db';
 export const prerender = false;
 
 /**
- * Campaign housekeeping — replaces the plugin's five-minute WP-Cron sweep.
+ * Campaign reporting — the vestigial descendant of the plugin's five-minute
+ * WP-Cron sweep. Runs daily (see vercel.json).
  *
- * Serverless functions only exist while handling a request, so there is no
- * background loop to hook; Vercel Cron calls this route on a schedule instead
- * (see vercel.json).
+ * This job is deliberately not load-bearing, and the schedule does not matter:
+ * `getActiveCampaign` evaluates the date window in SQL on every render, so
+ * campaigns start and expire exactly on time whether this has run recently or
+ * never. The plugin needed a frequent sweep because it cached rendered images
+ * in transients and had to bust that cache by hand; here the CDN expires them
+ * on a short TTL instead.
  *
- * Note this is now only bookkeeping, not correctness: `getActiveCampaign`
- * evaluates the date window in SQL on every render, so an expired campaign
- * stops appearing the moment it ends whether or not this job has run. The
- * plugin genuinely needed its sweep because it cached rendered images for five
- * minutes and had to bust that cache by hand.
+ * What remains is a health signal — a cheap daily answer to "is the database
+ * reachable, and what has lapsed?" — which is why a once-a-day schedule (all
+ * the Vercel Hobby plan allows) costs nothing functionally.
+ *
+ * If this ever grows side effects, revisit that reasoning: anything that must
+ * happen promptly cannot live here.
  */
 export const GET: APIRoute = async ({ request }) => {
 	// Vercel Cron sends the deployment's CRON_SECRET as a bearer token; without

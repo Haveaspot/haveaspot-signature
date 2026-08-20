@@ -92,7 +92,7 @@ depends on another site's asset paths staying put.
 | Click log | `wp_mech_sig_clicks` | `clicks` table |
 | Image rendering | PHP GD, 4 near-identical routers | `@vercel/og`, one route |
 | Image cache | `set_transient` + manual busting | CDN `s-maxage` headers |
-| Scheduled sweep | WP-Cron every 5 min | Vercel Cron every 15 min |
+| Scheduled sweep | WP-Cron every 5 min | Vercel Cron, daily (not load-bearing) |
 
 ### Key files
 
@@ -104,6 +104,16 @@ depends on another site's asset paths staying put.
 - `src/pages/api/cta.ts` — image renderer (`section=content|button|promo`).
 - `src/pages/api/track/[asset].ts` — click logging and redirects.
 - `db/schema.sql` — annotated schema.
+
+### Timing: what is live vs cached
+
+Campaign windows are evaluated in SQL on **every** image render, so a campaign
+goes live and expires on time regardless of the cron schedule. The cron job is a
+daily health report and mutates nothing.
+
+The real delay before a change reaches inboxes is the CDN cache on the image
+routes — `s-maxage=300`, so up to **5 minutes**. Lower that TTL if campaigns ever
+need to turn over faster; changing the cron frequency would achieve nothing.
 
 ## Deployment
 
