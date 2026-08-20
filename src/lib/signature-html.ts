@@ -172,13 +172,20 @@ export function renderSignature(opts: {
 	 * or padding. Word also ignores `border-radius`, so Outlook shows a square-
 	 * cornered panel — the fill and border still read correctly, which is the
 	 * right way for this to degrade.
+	 *
+	 * Sizing is chosen so the pill lands on 44px tall — the brand's button
+	 * height — rather than an arbitrary number. The wordmark is 5:1, so a 110px
+	 * logo is 22px tall, plus 10px padding top and bottom and the 1px border.
+	 * That gives a 148×44 pill: wide enough relative to its height to read as a
+	 * pill rather than a lozenge.
 	 */
+	const logoWidth = 110;
 	const logoHtml = `<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;">
 							<tr>
-								<td class="hsig-logo-pill" align="center" valign="middle" bgcolor="${brand.surface}" style="background-color:${brand.surface}; border:1px solid ${brand.borderLight}; border-radius:${radius.pill}px; padding:14px 16px; text-align:center; vertical-align:middle;">
-									<img src="${esc(logoLight)}?v=${v}" width="130" alt="Haveaspot" class="hsig-logo-light" style="display:block; border:none; outline:none; margin:0 auto;">
+								<td class="hsig-logo-pill" align="center" valign="middle" bgcolor="${brand.surface}" style="background-color:${brand.surface}; border:1px solid ${brand.borderLight}; border-radius:${radius.pill}px; padding:10px 18px; text-align:center; vertical-align:middle;">
+									<img src="${esc(logoLight)}?v=${v}" width="${logoWidth}" alt="Haveaspot" class="hsig-logo-light" style="display:block; border:none; outline:none; margin:0 auto;">
 									<!--[if !mso]><!-->
-									<img src="${esc(logoDark)}?v=${v}" width="130" alt="Haveaspot" class="hsig-logo-dark" style="display:none; border:none; outline:none; margin:0 auto; mso-hide:all;">
+									<img src="${esc(logoDark)}?v=${v}" width="${logoWidth}" alt="Haveaspot" class="hsig-logo-dark" style="display:none; border:none; outline:none; margin:0 auto; mso-hide:all;">
 									<!--<![endif]-->
 								</td>
 							</tr>
@@ -234,7 +241,7 @@ export function renderSignature(opts: {
 		<td class="hsig-td" style="padding:0 0 28px 0; background-color:${brand.white}; border-collapse:collapse; text-align:left;">
 			<table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
 				<tr>
-					<td class="hsig-td" width="164" valign="middle" align="left" style="width:164px; min-width:164px; padding:0 24px 0 0; text-align:left; vertical-align:middle;">
+					<td class="hsig-td" width="148" valign="middle" align="left" style="width:148px; min-width:148px; padding:0 24px 0 0; text-align:left; vertical-align:middle;">
 						${logoHtml}
 					</td>
 					<td class="hsig-td" valign="middle" align="left" style="padding:0; text-align:left; vertical-align:middle;">
