@@ -76,7 +76,7 @@ const checks: [string, boolean][] = [
 // dark-mode wordmark on a near-white fill.
 checks.push(['pill uses brand surface', html.includes('background-color:#F9FAFB')]);
 checks.push(['pill uses light border', html.includes('border:1px solid #E5E7EB')]);
-checks.push(['pill uses 20px radius', html.includes('border-radius:20px')]);
+checks.push(['pill is fully rounded', html.includes('border-radius:100px')]);
 checks.push([
 	'pill inverts in dark mode',
 	/\.hsig-logo-pill \{[^}]*background-color: rgba\(255,255,255/.test(html),

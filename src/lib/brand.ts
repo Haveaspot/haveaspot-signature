@@ -39,7 +39,17 @@ export const brand = {
 export const radius = {
 	card: 12,
 	button: 6,
-	pill: 20,
+	/**
+	 * The brand's `--radius-pill: 20px` is specified against 32px filter chips,
+	 * where a browser clamps it to half the height and the result is a perfect
+	 * pill. The token expresses "fully rounded", not a literal 20px corner.
+	 *
+	 * Anything taller needs a value past half its height to keep that intent —
+	 * the logo pill is 56px, where a literal 20px would read as a rounded
+	 * rectangle instead. Browsers clamp the excess, so an over-large value is
+	 * simply "however round it needs to be".
+	 */
+	pill: 100,
 } as const;
 
 /** Brand button height, in CSS pixels. */
