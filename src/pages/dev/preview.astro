@@ -104,6 +104,28 @@ const variants: Variant[] = [
 		fields: typical,
 		config: { ...baseConfig, disableCta: true },
 	},
+	{
+		name: 'With promo banner',
+		note: 'A campaign banner between the heading and the button. Supplied at 3:1, which is what the renderer composites to.',
+		fields: typical,
+		config: { ...baseConfig, promoImageUrl: `${Astro.url.origin}/dev/sample-banner?w=1080&h=360` },
+	},
+	{
+		name: 'Promo only',
+		note: 'promoOnly mode — the banner replaces the heading and button entirely. The whole card stays clickable.',
+		fields: typical,
+		config: {
+			...baseConfig,
+			promoOnly: true,
+			promoImageUrl: `${Astro.url.origin}/dev/sample-banner?w=1080&h=360`,
+		},
+	},
+	{
+		name: 'Promo at the wrong ratio',
+		note: 'A 16:9 banner in a 3:1 slot. The renderer cover-crops rather than letterboxing, so the top and bottom are cut — worth knowing before choosing artwork.',
+		fields: typical,
+		config: { ...baseConfig, promoImageUrl: `${Astro.url.origin}/dev/sample-banner?w=1280&h=720` },
+	},
 ];
 
 /**
@@ -131,11 +153,13 @@ const rendered = variants.map((variant) => {
 
 	if (!useProd) {
 		// Point the banner at the database-free renderer, carrying this variant's
-		// heading and button text through so each card matches its own config.
+		// full config through so each card matches the variant it belongs to.
 		const params = new URLSearchParams({
 			heading: variant.config.headingText,
 			button: variant.config.buttonText,
 		});
+		if (variant.config.promoImageUrl) params.set('promo', variant.config.promoImageUrl);
+		if (variant.config.promoOnly) params.set('promoOnly', '1');
 		html = html.replace(
 			/\/api\/cta\?[^"]*section=([a-z]+)[^"]*/g,
 			(_m, section) => `/dev/cta?section=${section}&${params.toString()}`,

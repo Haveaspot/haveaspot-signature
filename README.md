@@ -117,7 +117,10 @@ what breaks a fixed-width table layout, and nobody thinks to type those into the
 form by hand.
 
 It renders from `SETTING_DEFAULTS` and hand-built configs, so it needs no
-database. Images and links point at production by default, because the CTA
+database. Three of the variants exercise promo banners, drawn by
+`/dev/sample-banner` — including one supplied at 16:9 to show the cover-crop:
+the renderer composites promo art at 3:1 and crops rather than letterboxing, so
+banners want producing at 3:1 (1080x360 works well). Images and links point at production by default, because the CTA
 banner comes from `/api/cta` and would otherwise be a hole in the layout;
 `?images=local` switches back when the assets or the image renderer are what you
 are changing.
