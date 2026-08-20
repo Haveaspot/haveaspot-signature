@@ -108,6 +108,27 @@ depends on another site's asset paths staying put.
   Neon's Query console, which rejects multiple semicolon-separated commands.
   Regenerate it if the schema changes.
 
+### Design preview (dev only)
+
+`/dev/preview` renders the real `renderSignature` output in light and dark, side
+by side, across five variants — typical, minimal, long values, one phone, and
+CTA disabled. The awkward ones matter most: a long name or a wrapping heading is
+what breaks a fixed-width table layout, and nobody thinks to type those into the
+form by hand.
+
+It renders from `SETTING_DEFAULTS` and hand-built configs, so it needs no
+database. Images and links point at production by default, because the CTA
+banner comes from `/api/cta` and would otherwise be a hole in the layout;
+`?images=local` switches back when the assets or the image renderer are what you
+are changing.
+
+The dark panes re-emit the signature's own rules via `darkRulesCss('.force-dark ')`
+rather than keeping a copy, so the preview cannot drift from what really lands in
+an inbox.
+
+Guarded twice — in the page and in middleware — and Vite strips the body at build
+time, so it is absent from the production bundle rather than merely unreachable.
+
 ### Timing: what is live vs cached
 
 Campaign windows are evaluated in SQL on **every** image render, so a campaign

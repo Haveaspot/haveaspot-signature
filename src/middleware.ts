@@ -12,6 +12,13 @@ import { COOKIE_NAME, verifySessionToken } from './lib/auth';
 export const onRequest = defineMiddleware(async (context, next) => {
 	const { pathname } = context.url;
 
+	// Development-only routes. The pages check this themselves too; blocking it
+	// here as well means a new /dev page is unreachable in production before
+	// anyone remembers to add the guard.
+	if (pathname.startsWith('/dev') && !import.meta.env.DEV) {
+		return new Response('Not found', { status: 404 });
+	}
+
 	if (!pathname.startsWith('/admin')) return next();
 
 	// The login page and its form handler must stay reachable, or there would be

@@ -1,0 +1,217 @@
+---
+import { renderSignature, darkRulesCss } from '../../lib/signature-html';
+import type { SignatureFields } from '../../lib/signature-html';
+import { SETTING_DEFAULTS } from '../../lib/settings';
+import type { Settings } from '../../lib/settings';
+import type { CtaConfig } from '../../lib/campaigns';
+
+export const prerender = false;
+
+/**
+ * Signature design preview — development only.
+ *
+ * Renders the real `renderSignature` output in light and dark, side by side,
+ * across several variants. Exists because iterating on the design through the
+ * public form means re-filling it on every change, and because the awkward
+ * cases (a long name, no phone numbers, a wrapping heading) are the ones that
+ * break a table layout and the ones you would never think to type in by hand.
+ *
+ * Deliberately does not touch the database: it renders from SETTING_DEFAULTS
+ * and hand-built configs, so it works with no Postgres and cannot be affected
+ * by whatever campaign happens to be live.
+ *
+ * The dark panes re-emit the signature's own dark rules under a `.force-dark`
+ * class via `darkRulesCss()`, rather than keeping a second copy, so the preview
+ * cannot drift from what actually renders in a mail client.
+ */
+
+// Dev-only. Also blocked in middleware — this is the second of two locks,
+// because a route that renders arbitrary sample data has no business being
+// reachable on the live domain.
+if (!import.meta.env.DEV) {
+	return new Response('Not found', { status: 404 });
+}
+
+const settings = { ...SETTING_DEFAULTS } as Settings;
+
+const baseConfig: CtaConfig = {
+	headingText: settings.global_cta_text,
+	buttonText: settings.btn_text,
+	buttonUrl: 'https://haveaspot.com',
+	promoImageUrl: '',
+	disableCta: false,
+	disablePromo: false,
+	promoOnly: false,
+	campaign: null,
+	signature: null,
+};
+
+const typical: SignatureFields = {
+	firstName: 'Ross',
+	lastName: 'Chesterfield',
+	jobTitle: 'Founder & CEO',
+	email: 'ross@haveaspot.com',
+	mobile: '07700 900123',
+	office: '01823 555000',
+};
+
+interface Variant {
+	name: string;
+	note: string;
+	fields: SignatureFields;
+	config: CtaConfig;
+}
+
+const variants: Variant[] = [
+	{
+		name: 'Typical',
+		note: 'All fields present. The common case.',
+		fields: typical,
+		config: baseConfig,
+	},
+	{
+		name: 'Minimal',
+		note: 'No job title, no phone numbers — the name and email must still sit correctly.',
+		fields: { ...typical, jobTitle: '', mobile: '', office: '' },
+		config: baseConfig,
+	},
+	{
+		name: 'Long values',
+		note: 'Long name, long title, and a heading that wraps to two lines. Where a fixed-width table layout usually breaks.',
+		fields: {
+			firstName: 'Alexandra',
+			lastName: 'Fotheringham-Whitmore',
+			jobTitle: 'Interim Head of Partnerships & Commercial Development',
+			email: 'alexandra.fotheringham-whitmore@haveaspot.com',
+			mobile: '+44 7700 900123',
+			office: '+44 1823 555000',
+		},
+		config: {
+			...baseConfig,
+			headingText:
+				'Find and book the space you need. | Thousands of venues across the UK, bookable by the hour.',
+		},
+	},
+	{
+		name: 'Mobile only',
+		note: 'One phone number rather than two — checks the pipe separator does not strand.',
+		fields: { ...typical, office: '' },
+		config: baseConfig,
+	},
+	{
+		name: 'CTA disabled',
+		note: 'Banner and button suppressed entirely. Header and disclaimer should meet cleanly with no stray rule.',
+		fields: typical,
+		config: { ...baseConfig, disableCta: true },
+	},
+];
+
+/**
+ * Where the signature's images and links point.
+ *
+ * Defaults to production, because the CTA banner is rendered by `/api/cta`
+ * against the database — and with no local Postgres that route correctly
+ * returns its blank spacer, leaving a hole exactly where the banner belongs.
+ * Previewing the layout around an invisible banner is worse than useless.
+ *
+ * `?images=local` switches back for when the local assets or the image renderer
+ * itself are what you are changing.
+ */
+const useLocal = Astro.url.searchParams.get('images') === 'local';
+const assetBase = useLocal ? Astro.url.origin : 'https://sig.haveaspot.com';
+
+const rendered = variants.map((variant) => ({
+	...variant,
+	html: renderSignature({
+		fields: variant.fields,
+		config: variant.config,
+		settings,
+		baseUrl: assetBase,
+		version: 'preview',
+	}),
+}));
+---
+
+<html lang="en-GB">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="robots" content="noindex, nofollow" />
+		<title>Signature preview — dev</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+			rel="stylesheet"
+		/>
+		<style set:html={`
+			:root { --ink:#021300; --muted:#6B7280; --border:#E5E7EB; }
+			* { box-sizing: border-box; }
+			body {
+				margin: 0; padding: 2rem 1.5rem 5rem;
+				font-family: 'Poppins', system-ui, sans-serif;
+				color: var(--ink); background: #fff;
+			}
+			h1 { font-weight: 800; font-size: 1.5rem; margin: 0 0 .25rem; }
+			.sub { font-weight: 300; color: var(--muted); margin: 0 0 2rem; font-size: .875rem; }
+			.variant { margin-bottom: 3.5rem; }
+			.variant > h2 {
+				font-weight: 700; font-size: 1rem; margin: 0 0 .2rem;
+				padding-bottom: .5rem; border-bottom: 1px solid var(--border);
+			}
+			.variant > .note { font-weight: 300; font-size: .8125rem; color: var(--muted); margin: .5rem 0 1.25rem; }
+			.panes { display: grid; grid-template-columns: repeat(auto-fit, minmax(620px, 1fr)); gap: 1.25rem; }
+			.pane { padding: 1.25rem; border: 1px solid var(--border); overflow-x: auto; }
+			.pane.light { background: #fff; }
+			.pane.dark { background: #111; }
+			.pane > .label {
+				font-weight: 500; font-size: .6875rem; letter-spacing: .09em;
+				text-transform: uppercase; margin-bottom: 1rem;
+			}
+			.pane.light > .label { color: var(--muted); }
+			.pane.dark  > .label { color: #9aa39a; }
+
+			/* The signature's own dark rules, forced on rather than duplicated. */
+			${darkRulesCss('.force-dark ')}
+		`} />
+	</head>
+	<body>
+		<h1>Signature preview</h1>
+		<p class="sub">
+			Development only. Live <code>renderSignature</code> output — edit
+			<code>src/lib/signature-html.ts</code> and this reloads.
+			{
+				useLocal ? (
+					<>
+						Images from <strong>this machine</strong> — the CTA banner will be blank
+						without a local database. <a href="?">Use production images</a>
+					</>
+				) : (
+					<>
+						Images and links point at <strong>sig.haveaspot.com</strong>, so the CTA
+						banner is the real one. <a href="?images=local">Use local images</a>
+					</>
+				)
+			}
+		</p>
+
+		{
+			rendered.map((variant) => (
+				<section class="variant">
+					<h2>{variant.name}</h2>
+					<p class="note">{variant.note}</p>
+					<div class="panes">
+						<div class="pane light">
+							<div class="label">Light</div>
+							<Fragment set:html={variant.html} />
+						</div>
+						<div class="pane dark force-dark">
+							<div class="label">Dark</div>
+							<Fragment set:html={variant.html} />
+						</div>
+					</div>
+				</section>
+			))
+		}
+	</body>
+</html>

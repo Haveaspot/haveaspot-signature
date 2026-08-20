@@ -27,6 +27,45 @@ function telHref(phone: string): string {
 }
 
 /**
+ * Dark-mode overrides, as structured rules rather than a CSS string.
+ *
+ * Kept in this shape so the dev preview can re-emit the exact same rules under
+ * a forcing class instead of keeping its own copy. A duplicated stylesheet
+ * would drift, and the preview would quietly stop reflecting what actually
+ * lands in someone's inbox — which is the one job it has.
+ */
+const DARK_RULES: readonly (readonly [string, string])[] = [
+	[
+		'.hsig-tbl, .hsig-td',
+		`background-color: ${darkModeSurface} !important; border-color: ${darkModeAccent} !important; color: ${darkModeInk} !important;`,
+	],
+	['.hsig-name-first', `color: ${darkModeAccent} !important;`],
+	['.hsig-name-last, .hsig-txt', `color: ${darkModeInk} !important;`],
+	['.hsig-link', `color: ${darkModeAccent} !important;`],
+	['.hsig-icon', 'filter: brightness(0) invert(1) !important;'],
+	['.hsig-logo-light', 'display: none !important;'],
+	['.hsig-logo-dark', 'display: block !important;'],
+	['.hsig-disc, .hsig-pipe', `color: ${darkModeInk} !important;`],
+];
+
+/**
+ * Render the dark rules, optionally scoped under a prefix.
+ *
+ * No prefix: used inside the signature's own `prefers-color-scheme` query.
+ * With a prefix (e.g. `.force-dark `): used by the dev preview to show the dark
+ * treatment without changing the operating system's appearance setting.
+ */
+export function darkRulesCss(prefix = ''): string {
+	return DARK_RULES.map(([selector, declarations]) => {
+		const scoped = selector
+			.split(',')
+			.map((s) => `${prefix}${s.trim()}`)
+			.join(', ');
+		return `${scoped} { ${declarations} }`;
+	}).join('\n\t\t');
+}
+
+/**
  * The rendered email signature.
  *
  * Constraints that drive every odd-looking choice below:
@@ -130,14 +169,7 @@ export function renderSignature(opts: {
 	return `<style type="text/css">
 	:root { color-scheme: light dark; supported-color-schemes: light dark; }
 	@media (prefers-color-scheme: dark) {
-		.hsig-tbl, .hsig-td { background-color: ${darkModeSurface} !important; border-color: ${darkModeAccent} !important; color: ${darkModeInk} !important; }
-		.hsig-name-first { color: ${darkModeAccent} !important; }
-		.hsig-name-last, .hsig-txt { color: ${darkModeInk} !important; }
-		.hsig-link { color: ${darkModeAccent} !important; }
-		.hsig-icon { filter: brightness(0) invert(1) !important; }
-		.hsig-logo-light { display: none !important; }
-		.hsig-logo-dark { display: block !important; }
-		.hsig-disc, .hsig-pipe { color: ${darkModeInk} !important; }
+		${darkRulesCss()}
 	}
 </style>
 <table class="hsig-tbl" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px; min-width:600px; background-color:${brand.surface}; color:${brand.ink}; border:1px dashed ${brand.ink}; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt; font-family:${emailFontStack}; line-height:normal;">
