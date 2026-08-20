@@ -1,0 +1,227 @@
+---
+import '../styles/global.css';
+
+export const prerender = false;
+
+const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN ?? 'haveaspot.com';
+---
+
+<html lang="en-GB">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="robots" content="noindex" />
+		<title>Email Signature Generator — Haveaspot</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+			rel="stylesheet"
+		/>
+	</head>
+	<body>
+		<main class="page">
+			<h1>Email signature generator</h1>
+			<p class="lede">
+				Fill in your details to generate your Haveaspot email signature. Copy it
+				straight into Gmail, Outlook or Apple Mail — the banner underneath stays
+				up to date on its own, so you only need to do this once.
+			</p>
+
+			<div class="grid">
+				<!-- ------------------------------------------------------------- -->
+				<section class="panel">
+					<h2>Your details</h2>
+
+					<form id="sig-form" novalidate>
+						<div class="row">
+							<div class="field">
+								<label for="first_name">First name</label>
+								<input id="first_name" name="first_name" type="text" autocomplete="given-name" required />
+							</div>
+							<div class="field">
+								<label for="last_name">Last name</label>
+								<input id="last_name" name="last_name" type="text" autocomplete="family-name" required />
+							</div>
+						</div>
+
+						<div class="field">
+							<label for="job_title">Job title</label>
+							<input id="job_title" name="job_title" type="text" autocomplete="organization-title" />
+						</div>
+
+						<div class="field">
+							<label for="email">Work email</label>
+							<input id="email" name="email" type="email" autocomplete="email" required />
+							<span class="hint">Must be your @{allowedDomain} address.</span>
+						</div>
+
+						<div class="row">
+							<div class="field">
+								<label for="mobile">Mobile <span class="hint" style="display:inline">(optional)</span></label>
+								<input id="mobile" name="mobile" type="tel" autocomplete="tel" />
+							</div>
+							<div class="field">
+								<label for="office">Office <span class="hint" style="display:inline">(optional)</span></label>
+								<input id="office" name="office" type="tel" />
+							</div>
+						</div>
+
+						<!--
+							Honeypot. Hidden from people, irresistible to bots; anything that
+							fills it in gets a silent no-op from /api/sync.
+						-->
+						<div class="honeypot" aria-hidden="true">
+							<label for="middle_name">Middle name</label>
+							<input id="middle_name" name="middle_name" type="text" tabindex="-1" autocomplete="off" />
+						</div>
+
+						<div class="actions">
+							<button type="submit" class="btn" id="generate-btn">Generate signature</button>
+							<span class="status status--error" id="form-error" hidden></span>
+						</div>
+					</form>
+				</section>
+
+				<!-- ------------------------------------------------------------- -->
+				<section class="panel panel--preview">
+					<h2>Preview</h2>
+
+					<div class="preview-stage" id="preview-stage">
+						<p class="preview-empty" id="preview-empty">
+							Your signature will appear here once you fill in your details.
+						</p>
+						<div id="preview-output"></div>
+					</div>
+
+					<div class="actions">
+						<button type="button" class="btn" id="copy-btn" disabled>Copy signature</button>
+						<button type="button" class="btn btn--secondary" id="dark-btn" disabled>
+							Preview dark mode
+						</button>
+						<span class="status status--ok" id="copy-status" hidden>Copied.</span>
+					</div>
+
+					<ol class="steps">
+						<li>Click <strong>Copy signature</strong> above.</li>
+						<li>Gmail: Settings → See all settings → Signature → paste.</li>
+						<li>Outlook: Settings → Mail → Compose and reply → paste.</li>
+						<li>Apple Mail: Settings → Signatures → paste.</li>
+					</ol>
+				</section>
+			</div>
+
+			<!--
+				Font Awesome Free is CC BY 4.0, which requires attribution wherever the
+				icons are used. The signature itself has nowhere to put a credit — it
+				lands in other people's inboxes — so the notice lives here, on the page
+				the icons are distributed from.
+			-->
+			<footer class="site-footer">
+				<!--
+					Kept on single lines with explicit spaces: the Astro compiler trims
+					the whitespace between text and an inline element, which silently
+					runs the words together ("icons byFont Awesome").
+				-->
+				<p>
+					<span>Signature icons by </span><a href="https://fontawesome.com" rel="noopener noreferrer" target="_blank">Font Awesome</a><span>, licensed under </span><a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener noreferrer" target="_blank">CC BY 4.0</a><span>. Copyright &copy; Fonticons, Inc.</span>
+				</p>
+			</footer>
+		</main>
+
+		<script>
+			const form = document.getElementById('sig-form') as HTMLFormElement;
+			const errorEl = document.getElementById('form-error') as HTMLElement;
+			const generateBtn = document.getElementById('generate-btn') as HTMLButtonElement;
+			const copyBtn = document.getElementById('copy-btn') as HTMLButtonElement;
+			const darkBtn = document.getElementById('dark-btn') as HTMLButtonElement;
+			const copyStatus = document.getElementById('copy-status') as HTMLElement;
+			const stage = document.getElementById('preview-stage') as HTMLElement;
+			const output = document.getElementById('preview-output') as HTMLElement;
+			const emptyMsg = document.getElementById('preview-empty') as HTMLElement;
+
+			/** Markup returned by the server — the single source for copy + preview. */
+			let signatureHtml = '';
+
+			function showError(message: string) {
+				errorEl.textContent = message;
+				errorEl.hidden = false;
+			}
+
+			async function generate(event: Event) {
+				event.preventDefault();
+				errorEl.hidden = true;
+				generateBtn.disabled = true;
+				generateBtn.textContent = 'Generating…';
+
+				const data = Object.fromEntries(new FormData(form).entries());
+
+				try {
+					const response = await fetch('/api/sync', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(data),
+					});
+					const result = await response.json();
+
+					if (!response.ok || !result.ok) {
+						showError(result.error ?? 'Something went wrong. Please try again.');
+						return;
+					}
+
+					signatureHtml = result.html;
+					// Server-rendered markup from our own trusted endpoint.
+					output.innerHTML = signatureHtml;
+					emptyMsg.hidden = true;
+					copyBtn.disabled = false;
+					darkBtn.disabled = false;
+				} catch {
+					showError('Could not reach the server. Please check your connection.');
+				} finally {
+					generateBtn.disabled = false;
+					generateBtn.textContent = 'Generate signature';
+				}
+			}
+
+			/**
+			 * Copy as rich text.
+			 *
+			 * Writing text/html to the clipboard is what makes the signature paste
+			 * into Gmail and Outlook with its formatting intact; the text/plain
+			 * alternative is the fallback for plain-text targets.
+			 */
+			async function copySignature() {
+				if (!signatureHtml) return;
+
+				try {
+					await navigator.clipboard.write([
+						new ClipboardItem({
+							'text/html': new Blob([signatureHtml], { type: 'text/html' }),
+							'text/plain': new Blob([output.innerText], { type: 'text/plain' }),
+						}),
+					]);
+				} catch {
+					// Safari and older browsers reject ClipboardItem in some contexts;
+					// selecting the rendered node and using execCommand still works there.
+					const range = document.createRange();
+					range.selectNodeContents(output);
+					const selection = window.getSelection();
+					selection?.removeAllRanges();
+					selection?.addRange(range);
+					document.execCommand('copy');
+					selection?.removeAllRanges();
+				}
+
+				copyStatus.hidden = false;
+				setTimeout(() => (copyStatus.hidden = true), 3000);
+			}
+
+			form.addEventListener('submit', generate);
+			copyBtn.addEventListener('click', copySignature);
+			darkBtn.addEventListener('click', () => {
+				const isDark = stage.classList.toggle('preview-stage--dark');
+				darkBtn.textContent = isDark ? 'Preview light mode' : 'Preview dark mode';
+			});
+		</script>
+	</body>
+</html>

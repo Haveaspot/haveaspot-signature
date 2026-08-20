@@ -1,0 +1,16 @@
+# build output
+dist/
+.vercel/
+.astro/
+
+# dependencies
+node_modules/
+
+# environment — never commit; POSTGRES_URL and CRON_SECRET live here
+.env
+.env.local
+.env*.local
+
+# macOS
+.DS_Store
+._*

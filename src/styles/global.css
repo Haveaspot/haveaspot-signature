@@ -1,0 +1,274 @@
+/* =============================================================================
+   Haveaspot brand tokens.
+   Mirrors src/lib/brand.ts — keep the two in step.
+   ============================================================================= */
+
+:root {
+	--ink: #021300;
+	--accent: #0aad0a;
+	--accent-deep: #0e491f;
+	--surface: #f9fafb;
+	--border-light: #e5e7eb;
+	--white: #ffffff;
+	--muted: #6b7280;
+
+	--font: 'Poppins', system-ui, -apple-system, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	font-family: var(--font);
+	font-weight: 400;
+	color: var(--ink);
+	background: var(--white);
+	line-height: 1.6;
+	-webkit-font-smoothing: antialiased;
+}
+
+h1 {
+	font-weight: 800; /* ExtraBold — H1/H2 */
+	font-size: clamp(1.75rem, 4vw, 2.5rem);
+	line-height: 1.15;
+	margin: 0 0 0.5rem;
+}
+
+h2 {
+	font-weight: 800;
+	font-size: 1.375rem;
+	margin: 0 0 1rem;
+}
+
+h3 {
+	font-weight: 700; /* Bold — H3/H4, card titles */
+	font-size: 1rem;
+	margin: 0 0 0.75rem;
+}
+
+.lede {
+	font-weight: 300; /* Light — subtext */
+	color: var(--ink);
+	max-width: 60ch;
+	margin: 0 0 2.5rem;
+}
+
+/* --- Layout --------------------------------------------------------------- */
+
+.page {
+	max-width: 1180px;
+	margin: 0 auto;
+	padding: 3rem 1.5rem 5rem;
+}
+
+.grid {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+	gap: 2.5rem;
+	align-items: start;
+}
+
+@media (max-width: 900px) {
+	.grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+/* --- Form ----------------------------------------------------------------- */
+
+.panel {
+	background: var(--surface);
+	border: 1px dashed var(--ink);
+	padding: 1.75rem;
+}
+
+.panel--preview {
+	background: var(--white);
+	border: 1px solid var(--border-light);
+	overflow-x: auto;
+}
+
+.field {
+	margin-bottom: 1.25rem;
+}
+
+.field label {
+	display: block;
+	font-weight: 500; /* Medium — labels */
+	font-size: 0.875rem;
+	margin-bottom: 0.35rem;
+}
+
+.field input {
+	width: 100%;
+	padding: 0.7rem 0.75rem;
+	font-family: var(--font);
+	font-size: 0.9375rem;
+	color: var(--ink);
+	background: var(--white);
+	border: 1px solid var(--border-light);
+	border-radius: 0;
+}
+
+.field input:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
+	border-color: var(--accent);
+}
+
+.field .hint {
+	display: block;
+	font-weight: 300;
+	font-size: 0.8125rem;
+	color: var(--muted);
+	margin-top: 0.25rem;
+}
+
+.row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 1rem;
+}
+
+@media (max-width: 540px) {
+	.row {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Honeypot — off-screen rather than display:none, which some bots detect. */
+.honeypot {
+	position: absolute;
+	left: -9999px;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+}
+
+/* --- Buttons -------------------------------------------------------------- */
+
+.btn {
+	appearance: none;
+	display: inline-block;
+	font-family: var(--font);
+	font-weight: 500; /* Medium — buttons */
+	font-size: 0.9375rem;
+	line-height: 1.2;
+	padding: 0.875rem 1.5rem;
+	color: var(--white);
+	background: var(--ink);
+	border: 1px solid var(--ink);
+	cursor: pointer;
+	transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn:hover {
+	background: var(--accent);
+	border-color: var(--accent);
+}
+
+.btn:active {
+	background: var(--accent-deep);
+	border-color: var(--accent-deep);
+}
+
+.btn:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
+.btn--secondary {
+	color: var(--ink);
+	background: transparent;
+}
+
+.btn--secondary:hover {
+	color: var(--white);
+}
+
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	align-items: center;
+	margin-top: 1.5rem;
+}
+
+/* --- Status messages ------------------------------------------------------ */
+
+.status {
+	font-weight: 500;
+	font-size: 0.875rem;
+}
+
+.status--ok {
+	color: var(--accent-deep);
+}
+
+.status--error {
+	color: #b42318;
+}
+
+[hidden] {
+	display: none !important;
+}
+
+/* --- Preview -------------------------------------------------------------- */
+
+.preview-stage {
+	min-height: 220px;
+	padding: 1.25rem;
+	background: var(--white);
+	border: 1px solid var(--border-light);
+}
+
+.preview-stage--dark {
+	background: #111111;
+}
+
+.preview-empty {
+	font-weight: 300;
+	color: var(--muted);
+	font-size: 0.9375rem;
+}
+
+.steps {
+	margin: 1.5rem 0 0;
+	padding-left: 1.1rem;
+	font-weight: 300;
+	font-size: 0.875rem;
+	color: var(--ink);
+}
+
+.steps li {
+	margin-bottom: 0.4rem;
+}
+
+/* --- Footer --------------------------------------------------------------- */
+
+.site-footer {
+	margin-top: 3.5rem;
+	padding-top: 1.5rem;
+	border-top: 1px solid var(--border-light);
+}
+
+.site-footer p {
+	margin: 0;
+	font-weight: 300; /* Light — fine print */
+	font-size: 0.8125rem;
+	color: var(--muted);
+}
+
+.site-footer a {
+	color: var(--muted);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.site-footer a:hover {
+	color: var(--accent-deep);
+}

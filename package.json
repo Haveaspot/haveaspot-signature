@@ -1,0 +1,23 @@
+{
+  "name": "has-signature",
+  "type": "module",
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev --port 4326",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "db:push": "node --env-file=.env scripts/db-push.mjs",
+    "build:assets": "node scripts/build-assets.mjs",
+    "test": "node scripts/test.mjs"
+  },
+  "dependencies": {
+    "@astrojs/vercel": "^11.0.7",
+    "@vercel/og": "^0.8.5",
+    "astro": "^7.2.4",
+    "postgres": "^3.4.7"
+  }
+}
