@@ -116,15 +116,21 @@ const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN ?? 'haveaspot.com';
 				icons are used. The signature itself has nowhere to put a credit — it
 				lands in other people's inboxes — so the notice lives here, on the page
 				the icons are distributed from.
+
+				Poppins is OFL 1.1, which is satisfied by shipping the licence beside
+				the font files (public/fonts/OFL.txt) rather than by a visible credit;
+				it is named here for consistency, and linked so the licence is reachable.
+
+				Both lines are kept on one line each with explicit spaces: the Astro
+				compiler trims whitespace between text and inline elements, which
+				silently runs the words together ("icons byFont Awesome").
 			-->
 			<footer class="site-footer">
-				<!--
-					Kept on single lines with explicit spaces: the Astro compiler trims
-					the whitespace between text and an inline element, which silently
-					runs the words together ("icons byFont Awesome").
-				-->
 				<p>
 					<span>Signature icons by </span><a href="https://fontawesome.com" rel="noopener noreferrer" target="_blank">Font Awesome</a><span>, licensed under </span><a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener noreferrer" target="_blank">CC BY 4.0</a><span>. Copyright &copy; Fonticons, Inc.</span>
+				</p>
+				<p>
+					<span>Set in </span><a href="https://fonts.google.com/specimen/Poppins" rel="noopener noreferrer" target="_blank">Poppins</a><span>, licensed under the </span><a href="/fonts/OFL.txt" rel="license">SIL Open Font License 1.1</a><span>. Copyright &copy; 2020 The Poppins Project Authors.</span>
 				</p>
 			</footer>
 		</main>

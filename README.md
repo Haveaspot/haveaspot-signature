@@ -40,6 +40,12 @@ binaries — unlike PHP's GD it cannot fall back to system fonts, so these are
 committed rather than fetched. Replacements come from
 [Google Fonts](https://fonts.google.com/specimen/Poppins).
 
+Poppins is licensed under the SIL Open Font License 1.1. The OFL requires the
+licence and copyright notice to be distributed **with** the font files, which is
+why `OFL.txt` sits in the same directory — keep it there when changing weights.
+Unlike CC BY it does not require a visible credit, but the site footer names it
+anyway, alongside the Font Awesome attribution that is mandatory.
+
 ### Icons and logo
 
 `npm run build:assets` rasterises both. Re-run it after changing any source art.

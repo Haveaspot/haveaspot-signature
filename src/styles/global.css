@@ -257,10 +257,14 @@ h3 {
 }
 
 .site-footer p {
-	margin: 0;
+	margin: 0 0 0.35rem;
 	font-weight: 300; /* Light — fine print */
 	font-size: 0.8125rem;
 	color: var(--muted);
+}
+
+.site-footer p:last-child {
+	margin-bottom: 0;
 }
 
 .site-footer a {
