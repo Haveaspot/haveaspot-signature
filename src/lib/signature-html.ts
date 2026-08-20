@@ -1,9 +1,11 @@
 import {
 	brand,
+	radius,
 	emailFontStack,
 	darkModeInk,
 	darkModeSurface,
 	darkModeDivider,
+	darkModePillSurface,
 } from './brand';
 import type { CtaConfig } from './campaigns';
 import type { Settings } from './settings';
@@ -56,6 +58,12 @@ const DARK_RULES: readonly (readonly [string, string])[] = [
 		`color: ${darkModeInk} !important;`,
 	],
 	['.hsig-disc', `border-top-color: ${darkModeDivider} !important;`],
+	// The pill must invert with everything else. Left at #F9FAFB it would put
+	// the white dark-mode wordmark on a near-white fill, i.e. invisible.
+	[
+		'.hsig-logo-pill',
+		`background-color: ${darkModePillSurface} !important; border-color: ${darkModeDivider} !important;`,
+	],
 	['.hsig-icon', 'filter: brightness(0) invert(1) !important;'],
 	['.hsig-logo-light', 'display: none !important;'],
 	['.hsig-logo-dark', 'display: block !important;'],
@@ -155,10 +163,26 @@ export function renderSignature(opts: {
 	const logoLight = settings.logo_url || `${baseUrl}/logo/logo-light.png`;
 	const logoDark = settings.logo_url_dark || `${baseUrl}/logo/logo-dark.png`;
 
-	const logoHtml = `<img src="${esc(logoLight)}?v=${v}" width="130" alt="Haveaspot" class="hsig-logo-light" style="display:block; border:none; outline:none; margin:0 auto;">
-						<!--[if !mso]><!-->
-						<img src="${esc(logoDark)}?v=${v}" width="130" alt="Haveaspot" class="hsig-logo-dark" style="display:none; border:none; outline:none; margin:0 auto; mso-hide:all;">
-						<!--<![endif]-->`;
+	/**
+	 * The mark sits in a pill: `#F9FAFB` surface, `#E5E7EB` hairline border,
+	 * 20px radius — the brand's subtle-surface and pill-radius tokens.
+	 *
+	 * Built as a nested single-cell table rather than a styled div, because
+	 * Outlook renders through Word and will not give a div a reliable background
+	 * or padding. Word also ignores `border-radius`, so Outlook shows a square-
+	 * cornered panel — the fill and border still read correctly, which is the
+	 * right way for this to degrade.
+	 */
+	const logoHtml = `<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;">
+							<tr>
+								<td class="hsig-logo-pill" align="center" valign="middle" bgcolor="${brand.surface}" style="background-color:${brand.surface}; border:1px solid ${brand.borderLight}; border-radius:${radius.pill}px; padding:14px 16px; text-align:center; vertical-align:middle;">
+									<img src="${esc(logoLight)}?v=${v}" width="130" alt="Haveaspot" class="hsig-logo-light" style="display:block; border:none; outline:none; margin:0 auto;">
+									<!--[if !mso]><!-->
+									<img src="${esc(logoDark)}?v=${v}" width="130" alt="Haveaspot" class="hsig-logo-dark" style="display:none; border:none; outline:none; margin:0 auto; mso-hide:all;">
+									<!--<![endif]-->
+								</td>
+							</tr>
+						</table>`;
 
 	/**
 	 * The CTA block — one image, wrapped in one link.
@@ -210,7 +234,7 @@ export function renderSignature(opts: {
 		<td class="hsig-td" style="padding:0 0 28px 0; background-color:${brand.white}; border-collapse:collapse; text-align:left;">
 			<table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
 				<tr>
-					<td class="hsig-td" width="150" valign="middle" align="left" style="width:150px; min-width:150px; padding:0 24px 0 0; text-align:left; vertical-align:middle;">
+					<td class="hsig-td" width="164" valign="middle" align="left" style="width:164px; min-width:164px; padding:0 24px 0 0; text-align:left; vertical-align:middle;">
 						${logoHtml}
 					</td>
 					<td class="hsig-td" valign="middle" align="left" style="padding:0; text-align:left; vertical-align:middle;">

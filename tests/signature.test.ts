@@ -49,7 +49,12 @@ const checks: [string, boolean][] = [
 	// The legacy dashed/grey treatment is gone.
 	['no dashed borders', !html.includes('dashed')],
 	['white background', html.includes('background-color:#FFFFFF')],
-	['no F9FAFB surface fill', !html.includes('#F9FAFB')],
+	// #F9FAFB is legitimate as a small surface (the logo pill) but must not fill
+	// the signature body — that grey wash was the legacy look being removed.
+	// Two occurrences: the bgcolor attribute and the style declaration, both on
+	// the pill cell.
+	['surface fill limited to the pill', (html.match(/#F9FAFB/g) ?? []).length === 2],
+	['body cells are white', !/<td[^>]*background-color:#F9FAFB[^>]*class="hsig-td"/.test(html)],
 	['hairline divider above disclaimer', html.includes('border-top:1px solid #E5E7EB')],
 	['no Settlin navy', !html.includes('#010334')],
 	['no Cal Sans', !html.includes('Cal Sans')],
@@ -66,6 +71,19 @@ const checks: [string, boolean][] = [
 // Two variants ship so the green "a" survives dark mode; the icons' invert
 // filter must never be applied to the wordmark, and Outlook must only ever see
 // the light one.
+// The logo pill uses the brand's surface + non-featured border + pill radius,
+// and must invert in dark mode — left at #F9FAFB it would put the white
+// dark-mode wordmark on a near-white fill.
+checks.push(['pill uses brand surface', html.includes('background-color:#F9FAFB')]);
+checks.push(['pill uses light border', html.includes('border:1px solid #E5E7EB')]);
+checks.push(['pill uses 20px radius', html.includes('border-radius:20px')]);
+checks.push([
+	'pill inverts in dark mode',
+	/\.hsig-logo-pill \{[^}]*background-color: rgba\(255,255,255/.test(html),
+]);
+// bgcolor attribute as well as the style, for Outlook's Word renderer.
+checks.push(['pill has bgcolor attribute for Outlook', html.includes('bgcolor="#F9FAFB"')]);
+
 checks.push(['light logo present', html.includes('/logo/logo-light.png')]);
 checks.push(['dark logo present', html.includes('/logo/logo-dark.png')]);
 checks.push(['dark logo hidden by default', html.includes('class="hsig-logo-dark" style="display:none;')]);

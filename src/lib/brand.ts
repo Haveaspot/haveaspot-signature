@@ -39,6 +39,7 @@ export const brand = {
 export const radius = {
 	card: 12,
 	button: 6,
+	pill: 20,
 } as const;
 
 /** Brand button height, in CSS pixels. */
@@ -72,3 +73,13 @@ export const darkModeSurface = '#111111';
  * so the same hairline is expressed as a low-opacity white instead.
  */
 export const darkModeDivider = 'rgba(255,255,255,0.16)';
+
+/**
+ * The logo pill in dark mode.
+ *
+ * It cannot simply keep its `#F9FAFB` fill: the logo swaps to the white
+ * wordmark in dark mode, and a white mark on a near-white pill is invisible.
+ * The same "subtle raised surface" idea is expressed as a faint light wash on
+ * the dark background instead.
+ */
+export const darkModePillSurface = 'rgba(255,255,255,0.06)';
