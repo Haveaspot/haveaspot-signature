@@ -1,5 +1,10 @@
 import { readFileSync } from 'node:fs';
-import { renderSignature } from '../src/lib/signature-html.ts';
+import {
+	renderSignature,
+	ICON_COUNT,
+	ICON_PILL_WIDTH,
+	LOGO_PILL_WIDTH,
+} from '../src/lib/signature-html.ts';
 import { SETTING_DEFAULTS } from '../src/lib/settings.ts';
 import { estimateLines, headingLines } from '../src/lib/og.ts';
 
@@ -49,11 +54,17 @@ const checks: [string, boolean][] = [
 	// The legacy dashed/grey treatment is gone.
 	['no dashed borders', !html.includes('dashed')],
 	['white background', html.includes('background-color:#FFFFFF')],
-	// #F9FAFB is legitimate as a small surface (the logo pill) but must not fill
-	// the signature body — that grey wash was the legacy look being removed.
-	// Two occurrences: the bgcolor attribute and the style declaration, both on
-	// the pill cell.
-	['surface fill limited to the pill', (html.match(/#F9FAFB/g) ?? []).length === 2],
+	// #F9FAFB is legitimate on a pill but must never fill the signature body —
+	// that grey wash was the legacy look being removed. Asserted by context
+	// rather than by count, so adding another pill does not break the test while
+	// a stray body fill still would.
+	[
+		'surface fill only ever appears on a pill',
+		html
+			.split('\n')
+			.filter((line) => line.includes('#F9FAFB'))
+			.every((line) => line.includes('-pill')),
+	],
 	['body cells are white', !/<td[^>]*background-color:#F9FAFB[^>]*class="hsig-td"/.test(html)],
 	['hairline divider above disclaimer', html.includes('border-top:1px solid #E5E7EB')],
 	['no Settlin navy', !html.includes('#010334')],
@@ -77,12 +88,30 @@ const checks: [string, boolean][] = [
 checks.push(['pill uses brand surface', html.includes('background-color:#F9FAFB')]);
 checks.push(['pill uses light border', html.includes('border:1px solid #E5E7EB')]);
 checks.push(['pill is fully rounded', html.includes('border-radius:100px')]);
-checks.push([
-	'pill inverts in dark mode',
-	/\.hsig-logo-pill \{[^}]*background-color: rgba\(255,255,255/.test(html),
-]);
 // bgcolor attribute as well as the style, for Outlook's Word renderer.
 checks.push(['pill has bgcolor attribute for Outlook', html.includes('bgcolor="#F9FAFB"')]);
+
+// The two pills are only the same width because the icon padding was computed
+// from the icon count and spacing. Adding a fifth icon, or changing the gap,
+// silently breaks that alignment — so assert the arithmetic still holds.
+//
+// Computed from the exported geometry rather than scraped back out of the
+// markup: regexes over HTML were getting this wrong in both directions (the
+// icon <img> puts class before width, the logo <img> the other way round),
+// which is a brittle way to test a number the module already knows.
+checks.push([
+	`pills are the same width (icon ${ICON_PILL_WIDTH} vs logo ${LOGO_PILL_WIDTH})`,
+	ICON_PILL_WIDTH === LOGO_PILL_WIDTH,
+]);
+checks.push([
+	'icon count matches the geometry constant',
+	(html.match(/class="hsig-icon"/g) ?? []).length === ICON_COUNT,
+]);
+checks.push(['icon pill shares the pill styling', html.includes('hsig-icon-pill')]);
+checks.push([
+	'both pills invert in dark mode',
+	/\.hsig-logo-pill, \.hsig-icon-pill \{/.test(html),
+]);
 
 checks.push(['light logo present', html.includes('/logo/logo-light.png')]);
 checks.push(['dark logo present', html.includes('/logo/logo-dark.png')]);

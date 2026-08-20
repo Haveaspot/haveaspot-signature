@@ -35,6 +35,31 @@ function telHref(phone: string): string {
 }
 
 /**
+ * Icon pill geometry.
+ *
+ * Chosen so the icon pill comes out exactly as wide as the logo pill (148px):
+ * four 20px icons with three 12px gaps is 116px, and 15px of padding either
+ * side plus the 1px borders makes 148. Adjust the icon count or spacing and
+ * this padding is what has to change to keep the two pills aligned.
+ */
+export const ICON_SIZE = 20;
+export const ICON_GAP = 12;
+export const ICON_COUNT = 4;
+export const ICON_PILL_PADDING_X = 15;
+
+/** Logo pill geometry. The wordmark is 5:1, so 110px wide is 22px tall. */
+export const LOGO_WIDTH = 110;
+export const LOGO_PILL_PADDING_X = 18;
+
+/** 1px border on each side, common to both pills. */
+const PILL_BORDERS = 2;
+
+/** Rendered width of each pill. Equal by construction — asserted in tests. */
+export const ICON_PILL_WIDTH =
+	ICON_COUNT * ICON_SIZE + (ICON_COUNT - 1) * ICON_GAP + ICON_PILL_PADDING_X * 2 + PILL_BORDERS;
+export const LOGO_PILL_WIDTH = LOGO_WIDTH + LOGO_PILL_PADDING_X * 2 + PILL_BORDERS;
+
+/**
  * Dark-mode overrides, as structured rules rather than a CSS string.
  *
  * Kept in this shape so the dev preview can re-emit the exact same rules under
@@ -61,7 +86,7 @@ const DARK_RULES: readonly (readonly [string, string])[] = [
 	// The pill must invert with everything else. Left at #F9FAFB it would put
 	// the white dark-mode wordmark on a near-white fill, i.e. invisible.
 	[
-		'.hsig-logo-pill',
+		'.hsig-logo-pill, .hsig-icon-pill',
 		`background-color: ${darkModePillSurface} !important; border-color: ${darkModeDivider} !important;`,
 	],
 	['.hsig-icon', 'filter: brightness(0) invert(1) !important;'],
@@ -141,7 +166,7 @@ export function renderSignature(opts: {
 	const iconsHtml = icons
 		.map(
 			(icon, i) =>
-				`<a href="${esc(icon.href)}" style="text-decoration:none;" title="${esc(icon.title)}"><img class="hsig-icon" src="${esc(icon.url)}?v=${v}" width="20" height="20" alt="${esc(icon.title)}" style="display:inline-block; ${i < icons.length - 1 ? 'margin-right:12px;' : ''} vertical-align:middle; border:none; outline:none;"></a>`,
+				`<a href="${esc(icon.href)}" style="text-decoration:none;" title="${esc(icon.title)}"><img class="hsig-icon" src="${esc(icon.url)}?v=${v}" width="${ICON_SIZE}" height="${ICON_SIZE}" alt="${esc(icon.title)}" style="display:inline-block; ${i < icons.length - 1 ? `margin-right:${ICON_GAP}px;` : ''} vertical-align:middle; border:none; outline:none;"></a>`,
 		)
 		.join('');
 
@@ -179,14 +204,35 @@ export function renderSignature(opts: {
 	 * That gives a 148×44 pill: wide enough relative to its height to read as a
 	 * pill rather than a lozenge.
 	 */
-	const logoWidth = 110;
+	/** Shared pill styling, so the two pills cannot drift apart. */
+	const pillStyle = `background-color:${brand.surface}; border:1px solid ${brand.borderLight}; border-radius:${radius.pill}px; text-align:center; vertical-align:middle;`;
+
+	/**
+	 * Logo pill above, icon pill below — both 148×44.
+	 *
+	 * The widths agree by construction rather than by coincidence: the icon row
+	 * is four 20px icons with three 12px gaps (116px), and 15px of padding
+	 * either side brings it to the logo pill's 148px. Change the icon count or
+	 * spacing and `ICON_PILL_PADDING_X` below is what needs recomputing.
+	 *
+	 * The spacer row is an empty cell rather than padding or a margin, because
+	 * Outlook's Word renderer honours neither reliably between table rows.
+	 */
 	const logoHtml = `<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;">
 							<tr>
-								<td class="hsig-logo-pill" align="center" valign="middle" bgcolor="${brand.surface}" style="background-color:${brand.surface}; border:1px solid ${brand.borderLight}; border-radius:${radius.pill}px; padding:10px 18px; text-align:center; vertical-align:middle;">
-									<img src="${esc(logoLight)}?v=${v}" width="${logoWidth}" alt="Haveaspot" class="hsig-logo-light" style="display:block; border:none; outline:none; margin:0 auto;">
+								<td class="hsig-logo-pill" align="center" valign="middle" bgcolor="${brand.surface}" style="${pillStyle} padding:10px ${LOGO_PILL_PADDING_X}px;">
+									<img src="${esc(logoLight)}?v=${v}" width="${LOGO_WIDTH}" alt="Haveaspot" class="hsig-logo-light" style="display:block; border:none; outline:none; margin:0 auto;">
 									<!--[if !mso]><!-->
-									<img src="${esc(logoDark)}?v=${v}" width="${logoWidth}" alt="Haveaspot" class="hsig-logo-dark" style="display:none; border:none; outline:none; margin:0 auto; mso-hide:all;">
+									<img src="${esc(logoDark)}?v=${v}" width="${LOGO_WIDTH}" alt="Haveaspot" class="hsig-logo-dark" style="display:none; border:none; outline:none; margin:0 auto; mso-hide:all;">
 									<!--<![endif]-->
+								</td>
+							</tr>
+							<tr>
+								<td style="height:10px; font-size:0; line-height:0;">&nbsp;</td>
+							</tr>
+							<tr>
+								<td class="hsig-icon-pill" align="center" valign="middle" bgcolor="${brand.surface}" style="${pillStyle} padding:11px ${ICON_PILL_PADDING_X}px; font-size:0; line-height:0;">
+									${iconsHtml}
 								</td>
 							</tr>
 						</table>`;
@@ -241,7 +287,7 @@ export function renderSignature(opts: {
 		<td class="hsig-td" style="padding:0 0 28px 0; background-color:${brand.white}; border-collapse:collapse; text-align:left;">
 			<table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
 				<tr>
-					<td class="hsig-td" width="148" valign="middle" align="left" style="width:148px; min-width:148px; padding:0 24px 0 0; text-align:left; vertical-align:middle;">
+					<td class="hsig-td" width="${LOGO_PILL_WIDTH}" valign="middle" align="left" style="width:${LOGO_PILL_WIDTH}px; min-width:${LOGO_PILL_WIDTH}px; padding:0 24px 0 0; text-align:left; vertical-align:middle;">
 						${logoHtml}
 					</td>
 					<td class="hsig-td" valign="middle" align="left" style="padding:0; text-align:left; vertical-align:middle;">
@@ -251,10 +297,9 @@ export function renderSignature(opts: {
 								? `<p class="hsig-txt" style="margin:0 0 10px 0; font-family:${emailFontStack}; font-size:14px; font-weight:300; line-height:1.4; text-align:left; color:${brand.ink};">${esc(fields.jobTitle)}</p>`
 								: ''
 						}
-						<p class="hsig-txt" style="margin:0 0 14px 0; font-family:${emailFontStack}; font-size:13px; font-weight:300; line-height:1.5; text-align:left; color:${brand.ink};">
+						<p class="hsig-txt" style="margin:0; font-family:${emailFontStack}; font-size:13px; font-weight:300; line-height:1.5; text-align:left; color:${brand.ink};">
 							<a class="hsig-link" href="mailto:${esc(email)}" style="color:${brand.ink}; text-decoration:none;">${esc(email)}</a>${phoneParts}
 						</p>
-						<div style="display:block; text-align:left;">${iconsHtml}</div>
 					</td>
 				</tr>
 			</table>
