@@ -107,29 +107,43 @@ const variants: Variant[] = [
 ];
 
 /**
- * Where the signature's images and links point.
+ * Assets and the CTA artwork both come from this machine.
  *
- * Defaults to production, because the CTA banner is rendered by `/api/cta`
- * against the database — and with no local Postgres that route correctly
- * returns its blank spacer, leaving a hole exactly where the banner belongs.
- * Previewing the layout around an invisible banner is worse than useless.
+ * The signature points its CTA image at `/api/cta`, which needs the database.
+ * `/dev/cta` draws the same artwork from defaults with no database, so the
+ * rendered HTML is rewritten to use it — otherwise every variant would show a
+ * blank spacer where the banner belongs, and the layout could not be judged.
  *
- * `?images=local` switches back for when the local assets or the image renderer
- * itself are what you are changing.
+ * `?images=prod` leaves the URLs pointing at production, for sanity-checking
+ * against what is actually deployed.
  */
-const useLocal = Astro.url.searchParams.get('images') === 'local';
-const assetBase = useLocal ? Astro.url.origin : 'https://sig.haveaspot.com';
+const useProd = Astro.url.searchParams.get('images') === 'prod';
+const assetBase = useProd ? 'https://sig.haveaspot.com' : Astro.url.origin;
 
-const rendered = variants.map((variant) => ({
-	...variant,
-	html: renderSignature({
+const rendered = variants.map((variant) => {
+	let html = renderSignature({
 		fields: variant.fields,
 		config: variant.config,
 		settings,
 		baseUrl: assetBase,
 		version: 'preview',
-	}),
-}));
+	});
+
+	if (!useProd) {
+		// Point the banner at the database-free renderer, carrying this variant's
+		// heading and button text through so each card matches its own config.
+		const params = new URLSearchParams({
+			heading: variant.config.headingText,
+			button: variant.config.buttonText,
+		});
+		html = html.replace(
+			/\/api\/cta\?[^"]*section=([a-z]+)[^"]*/g,
+			(_m, section) => `/dev/cta?section=${section}&${params.toString()}`,
+		);
+	}
+
+	return { ...variant, html };
+});
 ---
 
 <html lang="en-GB">
@@ -181,15 +195,15 @@ const rendered = variants.map((variant) => ({
 			Development only. Live <code>renderSignature</code> output — edit
 			<code>src/lib/signature-html.ts</code> and this reloads.
 			{
-				useLocal ? (
+				useProd ? (
 					<>
-						Images from <strong>this machine</strong> — the CTA banner will be blank
-						without a local database. <a href="?">Use production images</a>
+						Assets from <strong>sig.haveaspot.com</strong> — what is deployed now.
+						<a href="?">Use local</a>
 					</>
 				) : (
 					<>
-						Images and links point at <strong>sig.haveaspot.com</strong>, so the CTA
-						banner is the real one. <a href="?images=local">Use local images</a>
+						Assets local; CTA drawn by <code>/dev/cta</code>, no database needed.
+						<a href="?images=prod">Compare with production</a>
 					</>
 				)
 			}

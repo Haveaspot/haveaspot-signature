@@ -38,8 +38,19 @@ const html = renderSignature({
 const checks: [string, boolean][] = [
 	['contains first name', html.includes('Ross')],
 	['contains last name', html.includes('Chesterfield')],
-	['accent on first name', html.includes('#0AAD0A')],
+	// Brand rule: green is an action/hover colour, never a default text colour.
+	// Email has no hover, so the only green in a signature is inside the logo
+	// artwork — none should appear in the markup.
+	['no green in the markup', !html.includes('#0AAD0A')],
 	['ink colour used', html.includes('#021300')],
+	// Brand rule: never grey text. Lightness comes from weight 300.
+	['no grey text', !/#6B7280|#374151|#888888|#666666/i.test(html)],
+	['disclaimer uses weight 300', /font-size:11px; font-weight:300/.test(html)],
+	// The legacy dashed/grey treatment is gone.
+	['no dashed borders', !html.includes('dashed')],
+	['white background', html.includes('background-color:#FFFFFF')],
+	['no F9FAFB surface fill', !html.includes('#F9FAFB')],
+	['hairline divider above disclaimer', html.includes('border-top:1px solid #E5E7EB')],
 	['no Settlin navy', !html.includes('#010334')],
 	['no Cal Sans', !html.includes('Cal Sans')],
 	['absolute cta image', html.includes('https://sig.haveaspot.com/api/cta?user=ross%40haveaspot.com')],
@@ -90,8 +101,12 @@ const promoOnly = renderSignature({
 	baseUrl: 'https://x.test',
 	version: 'test',
 });
-checks.push(['promoOnly drops button', !promoOnly.includes('section=button')]);
-checks.push(['promoOnly renders promo', promoOnly.includes('section=promo')]);
+// The CTA is now a single image whatever the mode — drawCta decides internally
+// whether that is heading + button or the promo alone, so the markup asks for
+// one `section=card` either way and there is no second request to drop.
+checks.push(['promoOnly still renders one CTA image', promoOnly.includes('section=card')]);
+checks.push(['CTA is a single image', (html.match(/section=card/g) ?? []).length === 1]);
+checks.push(['no separate button image', !html.includes('section=button')]);
 
 // Heading helpers
 checks.push(['pipe splits lines', headingLines('One | Two | Three').length === 3]);

@@ -8,20 +8,41 @@
  */
 
 export const brand = {
-	/** ALL body text, borders, headings. Never plain black. */
+	/**
+	 * ALL text — headings, body, subtext, metadata and fine print alike.
+	 *
+	 * The brand guide is explicit that grey text is never correct: lightness
+	 * comes from dropping the font weight to 300, not from fading the colour.
+	 * There is deliberately no `muted` token here, so there is nothing to reach
+	 * for by accident.
+	 */
 	ink: '#021300',
-	/** Hover states, active indicators, accent only — never body text. */
+	/**
+	 * Action and hover only — never a default text or background colour.
+	 *
+	 * Email has no hover state, so in the signature this is used for nothing at
+	 * all: the only green that appears is inside the logo artwork itself. Kept
+	 * here because the generator UI does have hover states.
+	 */
 	accent: '#0AAD0A',
-	/** Deep hover (button hover-over-hover). */
+	/** Deep hover, used sparingly. */
 	accentDeep: '#0E491F',
-	/** Surface / card background. */
-	surface: '#F9FAFB',
-	/** Light border. */
-	borderLight: '#E5E7EB',
+	/** Page background. */
 	white: '#FFFFFF',
-	/** Disclaimer / fine print. */
-	muted: '#6B7280',
+	/** Subtle surface — cards, dropdowns. Not a page or signature background. */
+	surface: '#F9FAFB',
+	/** Dividers and non-featured borders. Thin structural lines only. */
+	borderLight: '#E5E7EB',
 } as const;
+
+/** Radii, per the brand token set. */
+export const radius = {
+	card: 12,
+	button: 6,
+} as const;
+
+/** Brand button height, in CSS pixels. */
+export const BUTTON_HEIGHT = 44;
 
 /**
  * Poppins is not available in email clients, so the signature always ships a
@@ -45,5 +66,9 @@ export const weights = {
  * up; everything else ignores the media query and keeps the light design.
  */
 export const darkModeInk = '#FFFFFF';
-export const darkModeAccent = '#5BE85B';
 export const darkModeSurface = '#111111';
+/**
+ * Divider in dark mode. `#E5E7EB` would glare against a near-black background,
+ * so the same hairline is expressed as a low-opacity white instead.
+ */
+export const darkModeDivider = 'rgba(255,255,255,0.16)';

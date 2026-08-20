@@ -1,4 +1,10 @@
-import { brand, emailFontStack, darkModeInk, darkModeAccent, darkModeSurface } from './brand';
+import {
+	brand,
+	emailFontStack,
+	darkModeInk,
+	darkModeSurface,
+	darkModeDivider,
+} from './brand';
 import type { CtaConfig } from './campaigns';
 import type { Settings } from './settings';
 
@@ -37,15 +43,22 @@ function telHref(phone: string): string {
 const DARK_RULES: readonly (readonly [string, string])[] = [
 	[
 		'.hsig-tbl, .hsig-td',
-		`background-color: ${darkModeSurface} !important; border-color: ${darkModeAccent} !important; color: ${darkModeInk} !important;`,
+		`background-color: ${darkModeSurface} !important; color: ${darkModeInk} !important;`,
 	],
-	['.hsig-name-first', `color: ${darkModeAccent} !important;`],
-	['.hsig-name-last, .hsig-txt', `color: ${darkModeInk} !important;`],
-	['.hsig-link', `color: ${darkModeAccent} !important;`],
+	// Everything stays monochrome, matching light mode where text and links are
+	// both #021300. Green is an action colour and there is no action to signal.
+	// `.hsig-disc p` is not redundant: the class sits on the <td>, but the
+	// paragraph inside carries its own inline colour, which wins over an
+	// inherited one. Without the descendant selector the disclaimer stays
+	// #021300 and vanishes against the dark background.
+	[
+		'.hsig-name, .hsig-txt, .hsig-link, .hsig-disc, .hsig-disc p, .hsig-pipe',
+		`color: ${darkModeInk} !important;`,
+	],
+	['.hsig-disc', `border-top-color: ${darkModeDivider} !important;`],
 	['.hsig-icon', 'filter: brightness(0) invert(1) !important;'],
 	['.hsig-logo-light', 'display: none !important;'],
 	['.hsig-logo-dark', 'display: block !important;'],
-	['.hsig-disc, .hsig-pipe', `color: ${darkModeInk} !important;`],
 ];
 
 /**
@@ -147,45 +160,67 @@ export function renderSignature(opts: {
 						<img src="${esc(logoDark)}?v=${v}" width="130" alt="Haveaspot" class="hsig-logo-dark" style="display:none; border:none; outline:none; margin:0 auto; mso-hide:all;">
 						<!--<![endif]-->`;
 
-	// The CTA rows are omitted entirely when disabled, rather than rendered as a
-	// 1px transparent spacer the way the plugin did. A missing row cannot leave
-	// a stray hairline in Outlook.
+	/**
+	 * The CTA block — one image, wrapped in one link.
+	 *
+	 * Previously two stacked images (heading, then button) so that only the
+	 * button was clickable. Now a single render: it removes the hairline seam
+	 * between them, halves the requests, and lets the artwork be laid out as one
+	 * composition rather than two that have to agree about their shared edge.
+	 * The whole block being clickable is normal for an email banner.
+	 *
+	 * Omitted entirely when disabled rather than rendered as a transparent
+	 * spacer, so there is no stray element for Outlook to mis-space.
+	 */
 	const ctaRow = config.disableCta
 		? ''
 		: `
 		<tr>
-			<td class="hsig-td" align="left" style="border-top:1px dashed ${brand.ink}; border-left:1px dashed ${brand.ink}; border-right:1px dashed ${brand.ink}; padding:0; font-size:0; line-height:0; text-align:left;">
-				${
-					config.promoOnly
-						? `<img src="${ctaImage('promo')}" width="598" alt="" style="display:block; border:none; outline:none; margin:0; padding:0; width:100%; max-width:598px; height:auto;">`
-						: `<img src="${ctaImage('content')}" width="598" alt="" style="display:block; border:none; outline:none; margin:0; padding:0; width:100%; max-width:598px; height:auto;">
+			<td align="left" style="padding:0 0 28px 0; font-size:0; line-height:0; text-align:left;">
 				<a href="${esc(ctaLink)}" target="_blank" style="display:block; border:none; text-decoration:none; font-size:0; line-height:0;">
-					<img src="${ctaImage('button')}" width="598" alt="${esc(config.buttonText)}" style="display:block; border:none; outline:none; margin:0; padding:0; width:100%; max-width:598px; height:auto;">
-				</a>`
-				}
+					<img src="${ctaImage('card')}" width="600" alt="${esc(config.headingText.replace(/\s*\|\s*/g, ' '))}" style="display:block; border:none; outline:none; margin:0; padding:0; width:100%; max-width:600px; height:auto;">
+				</a>
 			</td>
 		</tr>`;
 
+	/**
+	 * Layout notes, against the brand guide:
+	 *
+	 *  - White background throughout. `#F9FAFB` is a card surface, not a page
+	 *    background, and the old dashed rules and grey fill were inherited from
+	 *    a different project.
+	 *  - Structure comes from whitespace and one `#E5E7EB` hairline above the
+	 *    disclaimer. Dividers are "thin structural lines only"; there is no
+	 *    dashed border anywhere in the brand.
+	 *  - Every piece of text is `#021300`. Lightness comes from weight — 300 for
+	 *    the job title, contact line and disclaimer — never from grey.
+	 *  - No green. It is an action/hover colour, and an email has no hover; the
+	 *    only green is inside the logo artwork.
+	 *  - The logo sits left with a generous gutter rather than a bordered cell,
+	 *    so the mark has room instead of being boxed in.
+	 */
 	return `<style type="text/css">
 	:root { color-scheme: light dark; supported-color-schemes: light dark; }
 	@media (prefers-color-scheme: dark) {
 		${darkRulesCss()}
 	}
 </style>
-<table class="hsig-tbl" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px; min-width:600px; background-color:${brand.surface}; color:${brand.ink}; border:1px dashed ${brand.ink}; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt; font-family:${emailFontStack}; line-height:normal;">
+<table class="hsig-tbl" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px; min-width:600px; background-color:${brand.white}; color:${brand.ink}; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt; font-family:${emailFontStack}; line-height:normal;">
 	<tr>
-		<td class="hsig-td" style="padding:0; background-color:${brand.surface}; border-collapse:collapse; text-align:left;">
+		<td class="hsig-td" style="padding:0 0 28px 0; background-color:${brand.white}; border-collapse:collapse; text-align:left;">
 			<table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
 				<tr>
-					<td class="hsig-td" width="160" valign="middle" align="center" style="width:160px; min-width:160px; border-right:1px dashed ${brand.ink}; padding:25px 15px; text-align:center; vertical-align:middle;">
+					<td class="hsig-td" width="150" valign="middle" align="left" style="width:150px; min-width:150px; padding:0 24px 0 0; text-align:left; vertical-align:middle;">
 						${logoHtml}
 					</td>
-					<td class="hsig-td" valign="middle" align="left" style="padding:25px 25px 25px 20px; text-align:left; vertical-align:middle;">
-						<h2 style="margin:0 0 4px 0; font-family:${emailFontStack}; font-size:18px; line-height:1.2; text-align:left; font-weight:normal; font-synthesis:none;">
-							<span class="hsig-name-first" style="color:${brand.accent};"><strong style="font-weight:700; font-family:inherit;">${esc(fields.firstName)}</strong></span> <span class="hsig-name-last" style="color:${brand.ink};"><strong style="font-weight:700; font-family:inherit;">${esc(fields.lastName)}</strong></span>
-						</h2>
-						<p class="hsig-txt" style="margin:0 0 8px 0; font-family:${emailFontStack}; font-size:14px; font-weight:400; text-align:left; color:${brand.ink};">${esc(fields.jobTitle)}</p>
-						<p class="hsig-txt" style="margin:0 0 10px 0; font-family:${emailFontStack}; font-size:13px; line-height:1.4; text-align:left;">
+					<td class="hsig-td" valign="middle" align="left" style="padding:0; text-align:left; vertical-align:middle;">
+						<p class="hsig-name" style="margin:0 0 2px 0; font-family:${emailFontStack}; font-size:18px; line-height:1.25; text-align:left; font-weight:700; color:${brand.ink}; font-synthesis:none;">${esc(`${fields.firstName} ${fields.lastName}`.trim())}</p>
+						${
+							fields.jobTitle
+								? `<p class="hsig-txt" style="margin:0 0 10px 0; font-family:${emailFontStack}; font-size:14px; font-weight:300; line-height:1.4; text-align:left; color:${brand.ink};">${esc(fields.jobTitle)}</p>`
+								: ''
+						}
+						<p class="hsig-txt" style="margin:0 0 14px 0; font-family:${emailFontStack}; font-size:13px; font-weight:300; line-height:1.5; text-align:left; color:${brand.ink};">
 							<a class="hsig-link" href="mailto:${esc(email)}" style="color:${brand.ink}; text-decoration:none;">${esc(email)}</a>${phoneParts}
 						</p>
 						<div style="display:block; text-align:left;">${iconsHtml}</div>
@@ -195,8 +230,8 @@ export function renderSignature(opts: {
 		</td>
 	</tr>${ctaRow}
 	<tr>
-		<td class="hsig-td hsig-disc" align="left" style="border-top:1px dashed ${brand.ink}; padding:20px 25px; background-color:${brand.surface}; text-align:left;">
-			<p style="font-family:Arial, Helvetica, sans-serif; font-size:10px; line-height:1.5; color:${brand.muted}; margin:0;">${disclaimerHtml}</p>
+		<td class="hsig-td hsig-disc" align="left" style="border-top:1px solid ${brand.borderLight}; padding:16px 0 0 0; background-color:${brand.white}; text-align:left;">
+			<p style="font-family:${emailFontStack}; font-size:11px; font-weight:300; line-height:1.6; color:${brand.ink}; margin:0;">${disclaimerHtml}</p>
 		</td>
 	</tr>
 </table>`;

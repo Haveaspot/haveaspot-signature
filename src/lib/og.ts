@@ -1,5 +1,6 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, access } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * Minimal element factory for Satori (`@vercel/og`).
@@ -32,12 +33,13 @@ let fontCache: { name: string; data: ArrayBuffer; weight: 400 | 500 | 700 }[] | 
 export async function loadFonts() {
 	if (fontCache) return fontCache;
 
-	const dir = path.join(process.cwd(), 'public', 'fonts');
 	const files: { file: string; weight: 400 | 500 | 700 }[] = [
 		{ file: 'Poppins-Regular.ttf', weight: 400 },
 		{ file: 'Poppins-Medium.ttf', weight: 500 },
 		{ file: 'Poppins-Bold.ttf', weight: 700 },
 	];
+
+	const dir = await fontDir();
 
 	fontCache = await Promise.all(
 		files.map(async ({ file, weight }) => ({
@@ -48,6 +50,40 @@ export async function loadFonts() {
 	);
 
 	return fontCache;
+}
+
+/**
+ * Locate `public/fonts`, which sits in different places depending on how the
+ * app is running.
+ *
+ * On Vercel the bundled function runs with the project root as its working
+ * directory, so `cwd/public/fonts` is correct. In local development the dev
+ * server can be started from a different directory with `--root`, and then cwd
+ * points somewhere else entirely — which shows up as a font ENOENT naming a
+ * path in a completely unrelated project.
+ *
+ * Tries cwd first (production's case), then walks up from this module.
+ */
+async function fontDir(): Promise<string> {
+	const candidates = [
+		path.join(process.cwd(), 'public', 'fonts'),
+		// src/lib/og.ts -> ../../public/fonts, for a non-bundled dev server.
+		path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'public', 'fonts'),
+	];
+
+	for (const dir of candidates) {
+		try {
+			await access(path.join(dir, 'Poppins-Regular.ttf'));
+			return dir;
+		} catch {
+			// try the next one
+		}
+	}
+
+	throw new Error(
+		`Could not find public/fonts. Looked in: ${candidates.join(', ')}. ` +
+			'@vercel/og needs the real font files — it cannot fall back to system fonts.',
+	);
 }
 
 /**
