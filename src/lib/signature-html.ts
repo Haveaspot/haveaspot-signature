@@ -168,15 +168,25 @@ export function renderSignature(opts: {
 		{ url: settings.icon_vcard || `${baseUrl}/icons/vcard.png`, href: vcardUrl, title: 'Save contact' },
 	];
 
-	// Phones are appended after the email address, each behind a pipe. Rendered
-	// as nowrap spans so a number never breaks across two lines.
-	const phoneParts = [fields.mobile, fields.office]
-		.filter(Boolean)
+	/**
+	 * Phone numbers sit on their own line beneath the email address.
+	 *
+	 * The pipe is a separator *between* numbers, not a prefix on each — so a
+	 * single number appears with no leading pipe, and the line reads
+	 * "mobile | office" rather than "| mobile | office".
+	 *
+	 * Each number is a nowrap span so it never breaks mid-number across a line.
+	 */
+	const phones = [fields.mobile, fields.office].filter(Boolean);
+
+	const pipe = `<span class="hsig-pipe" style="color:${brand.ink};">&nbsp;|&nbsp;</span>`;
+
+	const phonesHtml = phones
 		.map(
 			(phone) =>
-				`<span class="hsig-pipe" style="display:inline-block; white-space:nowrap; color:${brand.ink};">&nbsp;|&nbsp;<a class="hsig-link" href="tel:${esc(telHref(phone))}" style="color:${brand.ink}; text-decoration:none;">${esc(phone)}</a></span>`,
+				`<span style="display:inline-block; white-space:nowrap;"><a class="hsig-link" href="tel:${esc(telHref(phone))}" style="color:${brand.ink}; text-decoration:none;">${esc(phone)}</a></span>`,
 		)
-		.join('');
+		.join(pipe);
 
 	const iconsHtml = icons
 		.map(
@@ -323,7 +333,7 @@ export function renderSignature(opts: {
 							<tr>
 								<td class="hsig-td" height="${PILL_HEIGHT}" valign="middle" align="left" style="height:${PILL_HEIGHT}px; text-align:left; vertical-align:middle;">
 									<p class="hsig-txt" style="margin:0; font-family:${emailFontStack}; font-size:13px; font-weight:300; line-height:1.5; text-align:left; color:${brand.ink};">
-										<a class="hsig-link" href="mailto:${esc(email)}" style="color:${brand.ink}; text-decoration:none;">${esc(email)}</a>${phoneParts}
+										<a class="hsig-link" href="mailto:${esc(email)}" style="color:${brand.ink}; text-decoration:none;">${esc(email)}</a>${phonesHtml ? `<br>${phonesHtml}` : ''}
 									</p>
 								</td>
 							</tr>

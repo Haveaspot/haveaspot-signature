@@ -140,6 +140,47 @@ checks.push([
 	/\.hsig-logo-pill, \.hsig-icon-pill \{/.test(html),
 ]);
 
+// --- Contact line -----------------------------------------------------------
+// Phones belong on their own line under the email, and the pipe is a separator
+// between numbers rather than a prefix on each — so nothing starts with a pipe.
+{
+	// Anchored to the mailto link specifically: the icon links close earlier in
+	// the markup, so splitting on the first </a> lands in the left column.
+	checks.push([
+		'phones break onto their own line',
+		/href="mailto:[^"]*"[^>]*>[^<]*<\/a><br>/.test(html),
+	]);
+	checks.push([
+		'no pipe before the first number',
+		!/<br>\s*<span class="hsig-pipe"/.test(html),
+	]);
+	checks.push([
+		'one pipe between two numbers',
+		(html.match(/class="hsig-pipe"/g) ?? []).length === 1,
+	]);
+
+	// A single number must carry no pipe at all.
+	const oneNumber = renderSignature({
+		fields: { ...fields, office: '' },
+		config: baseConfig,
+		settings,
+		baseUrl: 'https://x.test',
+		version: 'test',
+	});
+	checks.push(['single number has no pipe', !oneNumber.includes('class="hsig-pipe"')]);
+	checks.push(['single number still breaks to its own line', oneNumber.includes('<br>')]);
+
+	// No numbers at all: no stray break to push the email off-centre.
+	const noNumbers = renderSignature({
+		fields: { ...fields, mobile: '', office: '' },
+		config: baseConfig,
+		settings,
+		baseUrl: 'https://x.test',
+		version: 'test',
+	});
+	checks.push(['no numbers means no line break', !noNumbers.includes('<br>\n') && !/<\/a><br>/.test(noNumbers)]);
+}
+
 checks.push(['light logo present', html.includes('/logo/logo-light.png')]);
 checks.push(['dark logo present', html.includes('/logo/logo-dark.png')]);
 checks.push(['dark logo hidden by default', html.includes('class="hsig-logo-dark" style="display:none;')]);
