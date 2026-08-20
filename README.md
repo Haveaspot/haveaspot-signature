@@ -103,7 +103,10 @@ depends on another site's asset paths staying put.
   styles, because Outlook renders through Word.
 - `src/pages/api/cta.ts` — image renderer (`section=content|button|promo`).
 - `src/pages/api/track/[asset].ts` — click logging and redirects.
-- `db/schema.sql` — annotated schema.
+- `db/schema.sql` — annotated schema, applied by `npm run db:push`.
+- `db/schema-single-statement.sql` — the same schema wrapped in a DO block, for
+  Neon's Query console, which rejects multiple semicolon-separated commands.
+  Regenerate it if the schema changes.
 
 ### Timing: what is live vs cached
 
