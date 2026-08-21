@@ -309,6 +309,13 @@ export function renderSignature(opts: {
 	 *    only green is inside the logo artwork.
 	 *  - The logo sits left with a generous gutter rather than a bordered cell,
 	 *    so the mark has room instead of being boxed in.
+	 *
+	 * The outer table has `max-width` but deliberately **no `min-width`**, and
+	 * that omission is load-bearing. Mobile clients scale a message to fit its
+	 * widest element, so a signature that refuses to go below 600px drags the
+	 * whole email down with it — the sender's own body copy included, rendering
+	 * at roughly 62% on a 375px screen. Without a floor the signature yields and
+	 * everything above it keeps its natural size. Do not add one back.
 	 */
 	return `<style type="text/css">
 	:root { color-scheme: light dark; supported-color-schemes: light dark; }
@@ -316,7 +323,7 @@ export function renderSignature(opts: {
 		${darkRulesCss()}
 	}
 </style>
-<table class="hsig-tbl" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px; min-width:600px; background-color:${brand.white}; color:${brand.ink}; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt; font-family:${emailFontStack}; line-height:normal;">
+<table class="hsig-tbl" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px; background-color:${brand.white}; color:${brand.ink}; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt; font-family:${emailFontStack}; line-height:normal;">
 	<tr>
 		<td class="hsig-td" style="padding:0 0 28px 0; background-color:${brand.white}; border-collapse:collapse; text-align:left;">
 			<table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
