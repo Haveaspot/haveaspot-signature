@@ -35,10 +35,15 @@ npm run dev
 
 ### Fonts
 
-`public/fonts/` holds Poppins Regular/Medium/Bold. `@vercel/og` needs real font
-binaries — unlike PHP's GD it cannot fall back to system fonts, so these are
-committed rather than fetched. Replacements come from
+`public/fonts/` holds Poppins Regular, Medium, Bold and ExtraBold. `@vercel/og`
+needs real font binaries — unlike PHP's GD it cannot fall back to system fonts —
+so these are committed rather than fetched. Replacements come from
 [Google Fonts](https://fonts.google.com/specimen/Poppins).
+
+**Adding a weight means adding a file.** Satori does no synthetic bolding: a
+weight with no font loaded silently falls back to the nearest one that is, so
+setting `fontWeight: 800` without shipping ExtraBold renders at 700 and looks
+like the change simply did nothing. Register new weights in `loadFonts()`.
 
 Poppins is licensed under the SIL Open Font License 1.1. The OFL requires the
 licence and copyright notice to be distributed **with** the font files, which is
@@ -111,19 +116,19 @@ depends on another site's asset paths staying put.
 ### Design preview (dev only)
 
 `/dev/preview` renders the real `renderSignature` output in light and dark, side
-by side, across five variants — typical, minimal, long values, one phone, and
-CTA disabled. The awkward ones matter most: a long name or a wrapping heading is
-what breaks a fixed-width table layout, and nobody thinks to type those into the
-form by hand.
+by side, across eight variants — typical, minimal, long values, one phone, CTA
+disabled, and three exercising promo banners. The awkward ones matter most: a
+long name or a wrapping heading is what breaks a fixed-width table layout, and
+nobody thinks to type those into the form by hand.
 
 It renders from `SETTING_DEFAULTS` and hand-built configs, so it needs no
-database. Three of the variants exercise promo banners, drawn by
-`/dev/sample-banner` — including one supplied at 16:9 to show the cover-crop:
-the renderer composites promo art at 3:1 and crops rather than letterboxing, so
-banners want producing at 3:1 (1080x360 works well). Images and links point at production by default, because the CTA
-banner comes from `/api/cta` and would otherwise be a hole in the layout;
-`?images=local` switches back when the assets or the image renderer are what you
-are changing.
+database — `/dev/cta` draws the same artwork as `/api/cta` without one, and
+`/dev/sample-banner` generates placeholder banners at any dimensions.
+`?images=prod` points everything at the live site instead, for comparison.
+
+One of the promo variants is deliberately 16:9 to show the cover-crop: the
+renderer composites promo art at 3:1 and crops rather than letterboxing, so
+banners want producing at **3:1** (1080×360 works well).
 
 The dark panes re-emit the signature's own rules via `darkRulesCss('.force-dark ')`
 rather than keeping a copy, so the preview cannot drift from what really lands in

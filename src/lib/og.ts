@@ -22,7 +22,7 @@ export function h(
 }
 
 /** Cached across warm invocations — reading fonts per request is wasteful. */
-let fontCache: { name: string; data: ArrayBuffer; weight: 400 | 500 | 700 }[] | null = null;
+let fontCache: { name: string; data: ArrayBuffer; weight: 400 | 500 | 700 | 800 }[] | null = null;
 
 /**
  * Load the Poppins weights used in the CTA artwork.
@@ -33,10 +33,14 @@ let fontCache: { name: string; data: ArrayBuffer; weight: 400 | 500 | 700 }[] | 
 export async function loadFonts() {
 	if (fontCache) return fontCache;
 
-	const files: { file: string; weight: 400 | 500 | 700 }[] = [
+	// Satori has no synthetic bolding: a weight with no file loaded silently
+	// falls back to the nearest one that is, so asking for 800 without shipping
+	// ExtraBold would render as 700 and look like the change did nothing.
+	const files: { file: string; weight: 400 | 500 | 700 | 800 }[] = [
 		{ file: 'Poppins-Regular.ttf', weight: 400 },
 		{ file: 'Poppins-Medium.ttf', weight: 500 },
 		{ file: 'Poppins-Bold.ttf', weight: 700 },
+		{ file: 'Poppins-ExtraBold.ttf', weight: 800 },
 	];
 
 	const dir = await fontDir();
