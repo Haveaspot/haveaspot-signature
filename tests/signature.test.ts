@@ -77,7 +77,7 @@ const checks: [string, boolean][] = [
 	['tracked cta link', html.includes('/api/track/cta?user=')],
 	['dark mode block', html.includes('prefers-color-scheme: dark')],
 	['600px width', html.includes('max-width:600px')],
-	['disclaimer newlines -> br', html.includes('haveaspot.com<br>')],
+	['disclaimer newlines -> br', html.includes('Somerset TA21 8SN<br>')],
 ];
 
 // --- Logo -------------------------------------------------------------------
@@ -141,6 +141,41 @@ checks.push(['icon pill shares the pill styling', html.includes('hsig-icon-pill'
 checks.push(['icon pill inverts in dark mode', /\.hsig-icon-pill \{/.test(html)]);
 checks.push(['logo pill has no CSS background to invert', !html.includes('hsig-logo-pill')]);
 
+// --- Disclaimer links -------------------------------------------------------
+// Gmail auto-links anything address-shaped in its own blue, which was the only
+// off-brand colour left. Linking them ourselves first keeps them #021300 —
+// Gmail only auto-links text that is not already a link.
+checks.push([
+	'disclaimer email is linked in brand ink',
+	/<a class="hsig-link" href="mailto:support@haveaspot\.com" style="color:#021300/.test(html),
+]);
+checks.push([
+	'disclaimer domain is linked in brand ink',
+	/<a class="hsig-link" href="https:\/\/haveaspot\.com" style="color:#021300/.test(html),
+]);
+checks.push(['no blue anywhere', !/#1155cc|#0000ee|blue/i.test(html)]);
+
+// The linkifier must not turn ordinary prose into links. These are the phrases
+// in the real disclaimer most likely to trip a naive word.word pattern.
+{
+	const prose = renderSignature({
+		fields,
+		config: baseConfig,
+		settings: {
+			...settings,
+			disclaimer_text:
+				'Contact e.g. the sender and delete the message. This does not constitute legal advice. See www.haveaspot.com or mail support@haveaspot.com.',
+		},
+		baseUrl: 'https://x.test',
+		version: 'test',
+	});
+	const disclaimer = prose.slice(prose.lastIndexOf('hsig-disc'));
+	const links = (disclaimer.match(/href="(?:mailto:|https:\/\/)/g) ?? []).length;
+	checks.push([`only real links in the disclaimer (${links} found, expected 2)`, links === 2]);
+	checks.push(['"e.g." is not linked', !prose.includes('href="https://e.g')]);
+	checks.push(['sentence-ending "advice." is not linked', !/href="[^"]*advice/.test(prose)]);
+}
+
 // --- CTA dark mode ----------------------------------------------------------
 // The CTA is a PNG and cannot answer a media query, so both themes are rendered
 // and swapped by CSS — the same approach as the logo.
@@ -194,7 +229,12 @@ checks.push(['CTA swaps in dark mode', /\.hsig-cta-light \{ display: none/.test(
 		baseUrl: 'https://x.test',
 		version: 'test',
 	});
-	checks.push(['no numbers means no line break', !noNumbers.includes('<br>\n') && !/<\/a><br>/.test(noNumbers)]);
+	// Scoped to the mailto anchor: the disclaimer's linked domain also produces
+	// </a><br>, so an unscoped check would now fail on unrelated markup.
+	checks.push([
+		'no numbers means no line break',
+		!new RegExp(`href="mailto:${fields.email}"[^>]*>[^<]*</a><br>`).test(noNumbers),
+	]);
 }
 
 // The pill is baked into the artwork rather than styled in CSS, so clients that

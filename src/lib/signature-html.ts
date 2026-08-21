@@ -35,6 +35,40 @@ function telHref(phone: string): string {
 }
 
 /**
+ * Turn addresses and URLs in the disclaimer into real links, in brand colours.
+ *
+ * Gmail auto-links anything that looks like an address or a URL and styles it
+ * with its own blue — the only off-brand colour left in the signature. It only
+ * does that to text which is not already a link, so linking them first, in
+ * `#021300`, keeps them ours. Clients that impose a dark mode then recolour
+ * these along with the surrounding text instead of singling them out.
+ *
+ * Runs on already-escaped text, so the `[^\s<]` guards cannot run into markup.
+ * One combined pattern rather than separate passes, so each match is consumed
+ * once: matching emails and URLs separately would let the URL pass rewrite the
+ * domain inside an href the email pass had just produced.
+ *
+ * The bare-domain arm requires a known TLD deliberately. A looser rule turns
+ * ordinary prose into links — "e.g." and a sentence-ending "advice." both match
+ * a naive `word.word` pattern.
+ */
+const LINKABLE = new RegExp(
+	[
+		'(https?:\\/\\/[^\\s<]+)', // explicit URL
+		'([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,})', // email address
+		'((?:www\\.)?[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)*\\.(?:com|co\\.uk|org|net|io|uk)\\b(?:\\/[^\\s<]*)?)', // bare domain
+	].join('|'),
+	'g',
+);
+
+function linkify(escaped: string): string {
+	return escaped.replace(LINKABLE, (match, url, email) => {
+		const href = url ? match : email ? `mailto:${match}` : `https://${match}`;
+		return `<a class="hsig-link" href="${href}" style="color:${brand.ink}; text-decoration:underline;">${match}</a>`;
+	});
+}
+
+/**
  * Icon pill geometry.
  *
  * Chosen so the icon pill comes out exactly as wide as the logo pill (148px):
@@ -204,7 +238,10 @@ export function renderSignature(opts: {
 		)
 		.join('');
 
-	const disclaimerHtml = esc(settings.disclaimer_text).replace(/\n/g, '<br>');
+	// Escape, then linkify, then break lines — in that order. Linkifying before
+	// the <br> substitution keeps the pattern's whitespace boundaries meaningful,
+	// and escaping first means no user text can inject markup through a link.
+	const disclaimerHtml = linkify(esc(settings.disclaimer_text)).replace(/\n/g, '<br>');
 
 	/**
 	 * The logo is swapped for dark mode rather than filtered.
