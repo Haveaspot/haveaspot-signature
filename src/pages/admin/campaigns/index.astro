@@ -1,0 +1,117 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { listCampaigns, campaignStatus, listDepartments } from '../../../lib/admin-db';
+
+export const prerender = false;
+
+let campaigns: Awaited<ReturnType<typeof listCampaigns>> = [];
+let departments: Awaited<ReturnType<typeof listDepartments>> = [];
+let loadError = '';
+
+try {
+	[campaigns, departments] = await Promise.all([listCampaigns(), listDepartments()]);
+} catch (err) {
+	loadError = err instanceof Error ? err.message : String(err);
+}
+
+const deptName = new Map(departments.map((d) => [d.id, d.name]));
+
+const fmt = new Intl.DateTimeFormat('en-GB', {
+	dateStyle: 'medium',
+	timeStyle: 'short',
+	timeZone: 'Europe/London',
+});
+
+function targeting(c: (typeof campaigns)[number]): string {
+	if (c.target_all) return 'Everyone';
+	const parts: string[] = [];
+	if (c.target_department_ids.length) {
+		parts.push(c.target_department_ids.map((id) => deptName.get(id) ?? '?').join(', '));
+	}
+	if (c.target_signature_ids.length) {
+		parts.push(`${c.target_signature_ids.length} individual${c.target_signature_ids.length === 1 ? '' : 's'}`);
+	}
+	return parts.join(' + ') || 'Nobody';
+}
+---
+
+<AdminLayout
+	title="Campaigns"
+	lede="Scheduled banners that replace the default across whoever they target. They reach signatures that were pasted months ago — nobody regenerates anything."
+	section="campaigns"
+>
+	<a slot="actions" class="btn" href="/admin/campaigns/new">New campaign</a>
+
+	{
+		loadError ? (
+			<section class="panel panel--error">
+				<h2>Database unavailable</h2>
+				<pre class="error-detail">{loadError}</pre>
+			</section>
+		) : campaigns.length === 0 ? (
+			<div class="table-wrap">
+				<p class="empty">
+					No campaigns yet. <a href="/admin/campaigns/new">Create one</a> to schedule a banner
+					for a date range.
+				</p>
+			</div>
+		) : (
+			<div class="table-wrap">
+				<table class="data">
+					<thead>
+						<tr>
+							<th>Campaign</th>
+							<th>Status</th>
+							<th>Runs</th>
+							<th>Targets</th>
+							<th>Clicks</th>
+							<th aria-label="Actions" />
+						</tr>
+					</thead>
+					<tbody>
+						{
+							campaigns.map((c) => {
+								const status = campaignStatus(c);
+								return (
+									<tr>
+										<td>
+											<strong>{c.name}</strong>
+											{c.cta_heading && <div class="muted">{c.cta_heading}</div>}
+										</td>
+										<td class="nowrap">
+											<span class={`badge badge--${status.tone}`}>{status.label}</span>
+										</td>
+										<td class="nowrap muted">
+											{c.starts_at && c.ends_at ? (
+												<>
+													{fmt.format(new Date(c.starts_at))}
+													<br />
+													to {fmt.format(new Date(c.ends_at))}
+												</>
+											) : (
+												<span class="muted">no dates set</span>
+											)}
+										</td>
+										<td>{targeting(c)}</td>
+										<td class="nowrap">{c.click_count}</td>
+										<td class="nowrap">
+											<a class="btn btn--secondary btn--small" href={`/admin/campaigns/${c.id}`}>
+												Edit
+											</a>
+										</td>
+									</tr>
+								);
+							})
+						}
+					</tbody>
+				</table>
+			</div>
+		)
+	}
+
+	<p class="footnote">
+		Times are UK local. Campaigns start and stop on their own — liveness is checked on every
+		render, so nothing has to run on a schedule for them to take effect. A change reaches
+		inboxes within about five minutes, which is the image cache.
+	</p>
+</AdminLayout>

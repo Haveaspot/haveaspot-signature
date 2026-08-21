@@ -37,7 +37,6 @@ for (const test of tests) {
 			`--outfile=${bundle}`,
 			'--log-level=error',
 			'--external:@vercel/og',
-			'--external:postgres',
 		],
 		{ stdio: 'inherit' },
 	);

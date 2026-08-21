@@ -180,6 +180,14 @@ export async function deleteSignature(id: number): Promise<void> {
  * a fixed offset would put one of them an hour out. Getting this wrong would
  * silently start or end campaigns at the wrong time, which is precisely the
  * thing the scheduling exists to control.
+ *
+ * The `::text` in the write casts is load-bearing, not noise. Without it the
+ * driver infers the parameter as a timestamptz and Postgres applies the session
+ * timezone before the explicit cast, so the offset lands twice: a BST time was
+ * stored two hours early and read back one hour early, while GMT times looked
+ * perfectly fine. Casting to text first forces it to be parsed as the naive
+ * local timestamp it actually is. Covered by tests in both seasons, because a
+ * winter-only test passes against the broken version.
  */
 export const CAMPAIGN_TZ = 'Europe/London';
 
@@ -256,8 +264,8 @@ export async function saveCampaign(id: number | null, input: CampaignInput): Pro
 					promo_only_mode, target_all
 				) VALUES (
 					${input.name},
-					${input.starts_at}::timestamp AT TIME ZONE ${CAMPAIGN_TZ},
-					${input.ends_at}::timestamp AT TIME ZONE ${CAMPAIGN_TZ},
+					${input.starts_at}::text::timestamp AT TIME ZONE ${CAMPAIGN_TZ},
+					${input.ends_at}::text::timestamp AT TIME ZONE ${CAMPAIGN_TZ},
 					${input.is_deactivated},
 					${input.cta_heading}, ${input.cta_link}, ${input.btn_text}, ${input.promo_image_url},
 					${input.promo_only_mode}, ${input.target_all}
@@ -268,8 +276,8 @@ export async function saveCampaign(id: number | null, input: CampaignInput): Pro
 			await tx`
 				UPDATE campaigns SET
 					name = ${input.name},
-					starts_at = ${input.starts_at}::timestamp AT TIME ZONE ${CAMPAIGN_TZ},
-					ends_at = ${input.ends_at}::timestamp AT TIME ZONE ${CAMPAIGN_TZ},
+					starts_at = ${input.starts_at}::text::timestamp AT TIME ZONE ${CAMPAIGN_TZ},
+					ends_at = ${input.ends_at}::text::timestamp AT TIME ZONE ${CAMPAIGN_TZ},
 					is_deactivated = ${input.is_deactivated},
 					cta_heading = ${input.cta_heading},
 					cta_link = ${input.cta_link},

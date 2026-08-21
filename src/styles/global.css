@@ -496,6 +496,22 @@ fieldset.group legend {
 	border-top: 1px solid var(--border-light);
 }
 
+/* Two columns of targeting checkboxes, stacking on narrow screens. */
+.target-cols {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: 1.5rem;
+	margin-top: 1rem;
+}
+
+.target-cols h3 {
+	font-size: 0.8125rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	margin-bottom: 0.75rem;
+}
+
 /* --- Admin ---------------------------------------------------------------- */
 
 .page--narrow {

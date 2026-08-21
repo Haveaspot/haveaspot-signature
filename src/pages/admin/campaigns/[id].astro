@@ -1,0 +1,283 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import {
+	getCampaign,
+	saveCampaign,
+	deleteCampaign,
+	listDepartments,
+	listSignatures,
+	campaignStatus,
+} from '../../../lib/admin-db';
+
+export const prerender = false;
+
+/**
+ * Campaign editor. `/admin/campaigns/new` creates; any numeric id edits.
+ */
+const isNew = Astro.params.id === 'new';
+const id = isNew ? null : Number(Astro.params.id);
+if (!isNew && !Number.isFinite(id)) return Astro.redirect('/admin/campaigns', 302);
+
+let notice = '';
+let error = '';
+
+if (Astro.request.method === 'POST') {
+	try {
+		const form = await Astro.request.formData();
+
+		if (String(form.get('action')) === 'delete' && id !== null) {
+			await deleteCampaign(id);
+			return Astro.redirect('/admin/campaigns', 302);
+		}
+
+		const name = String(form.get('name') ?? '').trim().slice(0, 120);
+		if (!name) throw new Error('Give the campaign a name.');
+
+		const starts = String(form.get('starts_at') ?? '').trim();
+		const ends = String(form.get('ends_at') ?? '').trim();
+
+		// A campaign with no dates never matches, so this would be a silent
+		// no-op rather than an error the user could see.
+		if (starts && ends && ends <= starts) {
+			throw new Error('The end must be after the start.');
+		}
+
+		const savedId = await saveCampaign(id, {
+			name,
+			starts_at: starts || null,
+			ends_at: ends || null,
+			is_deactivated: form.get('is_deactivated') === '1',
+			cta_heading: String(form.get('cta_heading') ?? '').trim().slice(0, 200),
+			cta_link: String(form.get('cta_link') ?? '').trim().slice(0, 400),
+			btn_text: String(form.get('btn_text') ?? '').trim().slice(0, 60),
+			promo_image_url: String(form.get('promo_image_url') ?? '').trim().slice(0, 400),
+			promo_only_mode: form.get('promo_only_mode') === '1',
+			target_all: form.get('target_all') === '1',
+			target_department_ids: form.getAll('departments').map(Number).filter(Number.isFinite),
+			target_signature_ids: form.getAll('signatures').map(Number).filter(Number.isFinite),
+		});
+
+		if (isNew) return Astro.redirect(`/admin/campaigns/${savedId}?created=1`, 302);
+		notice = 'Saved.';
+	} catch (err) {
+		error = err instanceof Error ? err.message : String(err);
+	}
+}
+
+let campaign: Awaited<ReturnType<typeof getCampaign>> = null;
+let departments: Awaited<ReturnType<typeof listDepartments>> = [];
+let staff: Awaited<ReturnType<typeof listSignatures>> = [];
+let loadError = '';
+
+try {
+	[campaign, departments, staff] = await Promise.all([
+		id === null ? Promise.resolve(null) : getCampaign(id),
+		listDepartments(),
+		listSignatures(),
+	]);
+} catch (err) {
+	loadError = err instanceof Error ? err.message : String(err);
+}
+
+if (!loadError && !isNew && !campaign) return Astro.redirect('/admin/campaigns', 302);
+
+const created = Astro.url.searchParams.get('created') === '1';
+const targetDepts = new Set(campaign?.target_department_ids ?? []);
+const targetStaff = new Set(campaign?.target_signature_ids ?? []);
+const status = campaign ? campaignStatus(campaign) : null;
+---
+
+<AdminLayout
+	title={isNew ? 'New campaign' : (campaign?.name ?? 'Campaign')}
+	lede={isNew ? 'Schedule a banner to replace the default for a period.' : undefined}
+	section="campaigns"
+>
+	<a slot="actions" class="btn btn--secondary btn--small" href="/admin/campaigns">← All campaigns</a>
+
+	{
+		loadError ? (
+			<section class="panel panel--error">
+				<h2>Database unavailable</h2>
+				<pre class="error-detail">{loadError}</pre>
+			</section>
+		) : (
+			<>
+				{created && <p class="status status--ok">Campaign created.</p>}
+				{notice && <p class="status status--ok">{notice}</p>}
+				{error && <p class="status status--error">{error}</p>}
+				{status && (
+					<p style="margin:0 0 1.5rem">
+						<span class={`badge badge--${status.tone}`}>{status.label}</span>
+						{campaign && campaign.click_count > 0 && (
+							<span class="footnote" style="margin-left:.75rem">
+								{campaign.click_count} click{campaign.click_count === 1 ? '' : 's'} so far
+							</span>
+						)}
+					</p>
+				)}
+
+				<form method="POST">
+					<fieldset class="group">
+						<legend>Schedule</legend>
+
+						<div class="field">
+							<label for="name">Campaign name</label>
+							<input id="name" name="name" type="text" value={campaign?.name} required />
+							<span class="hint">Internal only — never appears in a signature.</span>
+						</div>
+
+						<div class="row">
+							<div class="field">
+								<label for="starts_at">Starts</label>
+								<input
+									id="starts_at"
+									name="starts_at"
+									type="datetime-local"
+									value={campaign?.starts_local ?? ''}
+								/>
+							</div>
+							<div class="field">
+								<label for="ends_at">Ends</label>
+								<input
+									id="ends_at"
+									name="ends_at"
+									type="datetime-local"
+									value={campaign?.ends_local ?? ''}
+								/>
+							</div>
+						</div>
+						<span class="hint">
+							UK time. A campaign with no dates never runs — it stays a draft until both are set.
+						</span>
+
+						<label class="check" style="margin-top:1rem">
+							<input type="checkbox" name="is_deactivated" value="1" checked={campaign?.is_deactivated} />
+							<span>
+								Paused
+								<span class="hint">Keeps the dates but stops it running, so it can be resumed.</span>
+							</span>
+						</label>
+					</fieldset>
+
+					<fieldset class="group">
+						<legend>Who sees it</legend>
+
+						<label class="check">
+							<input type="checkbox" name="target_all" value="1" checked={campaign?.target_all} />
+							<span>
+								<strong>Everyone</strong>
+								<span class="hint">
+									Overrides the choices below, and overrides anyone who has switched their
+									banner off individually.
+								</span>
+							</span>
+						</label>
+
+						<div class="target-cols">
+							<div>
+								<h3>Departments</h3>
+								{departments.length === 0 ? (
+									<p class="footnote">
+										None yet — <a href="/admin/departments">create one</a>.
+									</p>
+								) : (
+									departments.map((d) => (
+										<label class="check">
+											<input
+												type="checkbox"
+												name="departments"
+												value={d.id}
+												checked={targetDepts.has(d.id)}
+											/>
+											<span>
+												{d.name}
+												<span class="hint">
+													{d.member_count} {d.member_count === 1 ? 'person' : 'people'}
+												</span>
+											</span>
+										</label>
+									))
+								)}
+							</div>
+
+							<div>
+								<h3>Individuals</h3>
+								{staff.length === 0 ? (
+									<p class="footnote">Nobody has generated a signature yet.</p>
+								) : (
+									staff.map((s) => (
+										<label class="check">
+											<input
+												type="checkbox"
+												name="signatures"
+												value={s.id}
+												checked={targetStaff.has(s.id)}
+											/>
+											<span>
+												{`${s.first_name} ${s.last_name}`.trim() || s.email}
+												<span class="hint">{s.email}</span>
+											</span>
+										</label>
+									))
+								)}
+							</div>
+						</div>
+					</fieldset>
+
+					<fieldset class="group">
+						<legend>The banner</legend>
+						<p class="footnote" style="margin-top:0">
+							Anything left blank falls back to the global settings.
+						</p>
+
+						<div class="field">
+							<label for="cta_heading">Heading</label>
+							<input id="cta_heading" name="cta_heading" type="text" value={campaign?.cta_heading} />
+							<span class="hint">Use | to force a line break.</span>
+						</div>
+
+						<div class="field">
+							<label for="btn_text">Button label</label>
+							<input id="btn_text" name="btn_text" type="text" value={campaign?.btn_text} />
+						</div>
+
+						<div class="field">
+							<label for="cta_link">Button destination</label>
+							<input id="cta_link" name="cta_link" type="url" value={campaign?.cta_link} />
+						</div>
+
+						<div class="field">
+							<label for="promo_image_url">Promo banner image</label>
+							<input id="promo_image_url" name="promo_image_url" type="url" value={campaign?.promo_image_url} />
+							<span class="hint">3:1 — 1080×360 works well. Other ratios are cropped, not letterboxed.</span>
+						</div>
+
+						<label class="check">
+							<input type="checkbox" name="promo_only_mode" value="1" checked={campaign?.promo_only_mode} />
+							<span>Show only the promo image, no heading or button</span>
+						</label>
+					</fieldset>
+
+					<div class="form-actions">
+						<button type="submit" class="btn">{isNew ? 'Create campaign' : 'Save'}</button>
+						<a class="btn btn--secondary" href="/admin/campaigns">Cancel</a>
+					</div>
+				</form>
+
+				{!isNew && (
+					<form
+						method="POST"
+						style="margin-top:2.5rem"
+						onsubmit={`return confirm('Delete "${campaign?.name}"? Its click history is kept but no longer attributed to it.')`}
+					>
+						<input type="hidden" name="action" value="delete" />
+						<button type="submit" class="btn btn--danger btn--small">Delete this campaign</button>
+						<span class="footnote" style="display:block; margin-top:.5rem">
+							To stop it without losing it, tick <strong>Paused</strong> above instead.
+						</span>
+					</form>
+				)}
+			</>
+		)
+	}
+</AdminLayout>
