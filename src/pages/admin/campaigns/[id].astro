@@ -1,5 +1,7 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
+import BannerField from '../../../components/BannerField.astro';
+import { listMedia, isConfigured } from '../../../lib/media';
 import {
 	getCampaign,
 	saveCampaign,
@@ -68,6 +70,18 @@ let campaign: Awaited<ReturnType<typeof getCampaign>> = null;
 let departments: Awaited<ReturnType<typeof listDepartments>> = [];
 let staff: Awaited<ReturnType<typeof listSignatures>> = [];
 let loadError = '';
+
+// Best-effort: the field falls back to a plain URL box if the library cannot be
+// read, so a blob problem never blocks editing.
+const mediaConfigured = isConfigured();
+let media: Awaited<ReturnType<typeof listMedia>> = [];
+if (mediaConfigured) {
+	try {
+		media = await listMedia();
+	} catch {
+		media = [];
+	}
+}
 
 try {
 	[campaign, departments, staff] = await Promise.all([
@@ -246,11 +260,12 @@ const status = campaign ? campaignStatus(campaign) : null;
 							<input id="cta_link" name="cta_link" type="url" value={campaign?.cta_link} />
 						</div>
 
-						<div class="field">
-							<label for="promo_image_url">Promo banner image</label>
-							<input id="promo_image_url" name="promo_image_url" type="url" value={campaign?.promo_image_url} />
-							<span class="hint">3:1 — 1080×360 works well. Other ratios are cropped, not letterboxed.</span>
-						</div>
+						<BannerField
+							name="promo_image_url"
+							value={campaign?.promo_image_url ?? ''}
+							media={media}
+							configured={mediaConfigured}
+						/>
 
 						<label class="check">
 							<input type="checkbox" name="promo_only_mode" value="1" checked={campaign?.promo_only_mode} />

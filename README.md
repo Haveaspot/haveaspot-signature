@@ -222,6 +222,33 @@ without that argument and prints the host first, because the rows it writes
 would corrupt real reporting. Remove them with
 `DELETE FROM clicks WHERE visitor_hash LIKE 'seed-%';`.
 
+### Banner uploads
+
+Campaign artwork is uploaded through `/admin/media` and stored in **Vercel
+Blob**. The WordPress original took a URL and expected the image to be hosted
+elsewhere — usually the WP media library — and removing that indirection is the
+point.
+
+Set up: Vercel → Storage → Create → **Blob**, connect it to the project, then
+redeploy. That sets `BLOB_READ_WRITE_TOKEN`.
+
+Blob rather than the filesystem because serverless functions have no persistent
+disk, and rather than Postgres because a database is the wrong place for binary
+image data.
+
+**Uploads are additive, not required.** Every banner field still accepts a
+pasted URL, and the field falls back to a plain URL box when no store is
+connected or the library cannot be read — so a blob problem can never block
+editing a campaign.
+
+The URLs are public, though not for the obvious reason: mail clients never fetch
+them. Promo art is composited *into* the CTA PNG server-side, so it is this app
+that reads the blob and the recipient only ever sees the rendered card.
+
+Dimensions are read from the file header on upload to warn about the 3:1 crop
+before someone finds out from a rendered signature. SVG is rejected — Satori
+cannot rasterise it.
+
 ## Still to build
 
 - Rate limiting on `/api/sync`.

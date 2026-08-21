@@ -1,0 +1,88 @@
+---
+import type { MediaItem } from '../lib/media';
+
+interface Props {
+	name: string;
+	value?: string;
+	label?: string;
+	media: MediaItem[];
+	configured: boolean;
+}
+
+const { name, value = '', label = 'Promo banner image', media, configured } = Astro.props;
+
+/**
+ * A banner image field: pick from the library, or paste a URL.
+ *
+ * Both are offered rather than replacing the URL box, because the field has to
+ * keep working for artwork hosted elsewhere — and because it must not become
+ * unusable if the blob store is ever disconnected. The picker writes into the
+ * same input, so what gets submitted is a URL either way and nothing
+ * downstream needs to know where it came from.
+ *
+ * The thumbnail updates from whatever the input holds, so a pasted URL is
+ * previewed too, not just a picked one.
+ */
+const id = `banner-${name}`;
+---
+
+<div class="field banner-field" data-banner-field>
+	<label for={id}>{label}</label>
+
+	{
+		configured && media.length > 0 && (
+			<select class="banner-picker" aria-label="Choose an uploaded banner">
+				<option value="">Choose from the library…</option>
+				{media.map((m) => <option value={m.url}>{m.filename}</option>)}
+			</select>
+		)
+	}
+
+	<input id={id} name={name} type="url" value={value} placeholder="https://…" />
+
+	<span class="hint">
+		{
+			configured
+				? media.length > 0
+					? 'Pick one above, or paste a URL. '
+					: 'Nothing uploaded yet — '
+				: ''
+		}
+		<a href="/admin/media">{configured ? 'Manage banners' : 'Set up uploads'}</a>. Produce at 3:1 —
+		1080×360 works well. Other ratios are cropped.
+	</span>
+
+	<img class="banner-thumb" alt="" hidden />
+</div>
+
+<script>
+	// Wired per-field rather than globally, so several can sit on one page.
+	document.querySelectorAll<HTMLElement>('[data-banner-field]').forEach((field) => {
+		const input = field.querySelector<HTMLInputElement>('input[type="url"]');
+		const picker = field.querySelector<HTMLSelectElement>('.banner-picker');
+		const thumb = field.querySelector<HTMLImageElement>('.banner-thumb');
+		if (!input || !thumb) return;
+
+		const sync = () => {
+			const url = input.value.trim();
+			// Only preview http(s): a data: or javascript: value has no business
+			// being loaded here even though the field is admin-only.
+			const ok = /^https?:\/\//i.test(url);
+			thumb.hidden = !ok;
+			if (ok && thumb.src !== url) thumb.src = url;
+			// Keep the select in step when the URL is edited by hand.
+			if (picker) picker.value = [...picker.options].some((o) => o.value === url) ? url : '';
+		};
+
+		picker?.addEventListener('change', () => {
+			if (picker.value) {
+				input.value = picker.value;
+				sync();
+			}
+		});
+
+		input.addEventListener('input', sync);
+		thumb.addEventListener('error', () => (thumb.hidden = true));
+		sync();
+	});
+</script>

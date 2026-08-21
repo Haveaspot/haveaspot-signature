@@ -2,6 +2,8 @@
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getSettings, setSetting, SETTING_DEFAULTS } from '../../lib/settings';
 import type { SettingKey } from '../../lib/settings';
+import BannerField from '../../components/BannerField.astro';
+import { listMedia, isConfigured } from '../../lib/media';
 
 export const prerender = false;
 
@@ -102,6 +104,18 @@ if (Astro.request.method === 'POST') {
 let settings: Awaited<ReturnType<typeof getSettings>> | null = null;
 let loadError = '';
 
+// The library is a nicety, not a dependency: if it cannot be read the field
+// still accepts a pasted URL, so a blob outage must not block editing settings.
+const mediaConfigured = isConfigured();
+let media: Awaited<ReturnType<typeof listMedia>> = [];
+if (mediaConfigured) {
+	try {
+		media = await listMedia();
+	} catch {
+		media = [];
+	}
+}
+
 try {
 	settings = await getSettings();
 } catch (err) {
@@ -129,7 +143,7 @@ try {
 					<legend>Banner</legend>
 					{
 						FIELDS.filter((f) =>
-							['global_cta_text', 'btn_text', 'cta_url', 'promo_image_url', 'disable_global_cta', 'promo_only_mode'].includes(f.key),
+							['global_cta_text', 'btn_text', 'cta_url', 'disable_global_cta', 'promo_only_mode'].includes(f.key),
 						).map((field) =>
 							field.type === 'checkbox' ? (
 								<label class="check">
@@ -158,6 +172,13 @@ try {
 							),
 						)
 					}
+
+					<BannerField
+						name="promo_image_url"
+						value={settings?.promo_image_url ?? ''}
+						media={media}
+						configured={mediaConfigured}
+					/>
 				</fieldset>
 
 				<fieldset class="group">

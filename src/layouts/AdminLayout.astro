@@ -5,7 +5,14 @@ interface Props {
 	title: string;
 	lede?: string;
 	/** Highlights the current section in the nav. */
-	section?: 'dashboard' | 'signatures' | 'departments' | 'campaigns' | 'settings' | 'analytics';
+	section?:
+		| 'dashboard'
+		| 'signatures'
+		| 'departments'
+		| 'campaigns'
+		| 'media'
+		| 'settings'
+		| 'analytics';
 }
 
 const { title, lede, section } = Astro.props;
@@ -22,6 +29,7 @@ const nav = [
 	{ href: '/admin/signatures', label: 'Staff', key: 'signatures' },
 	{ href: '/admin/departments', label: 'Departments', key: 'departments' },
 	{ href: '/admin/campaigns', label: 'Campaigns', key: 'campaigns' },
+	{ href: '/admin/media', label: 'Banners', key: 'media' },
 	{ href: '/admin/settings', label: 'Settings', key: 'settings' },
 	{ href: '/admin/analytics', label: 'Analytics', key: 'analytics' },
 ] as const;

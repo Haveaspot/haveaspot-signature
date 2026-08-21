@@ -642,6 +642,86 @@ fieldset.group legend {
 	min-width: 2px;
 }
 
+/* --- Media library -------------------------------------------------------- */
+
+.media-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	gap: 1.25rem;
+}
+
+.media-item {
+	margin: 0;
+	border: 1px solid var(--border-light);
+	border-radius: var(--radius-card);
+	overflow: hidden;
+	background: var(--white);
+}
+
+/* Checkerboard behind the art so a transparent PNG reads as transparent
+   rather than as white artwork. */
+.media-item img {
+	display: block;
+	width: 100%;
+	aspect-ratio: 3 / 1;
+	object-fit: cover;
+	background-color: var(--surface);
+	background-image: linear-gradient(45deg, #eef0ee 25%, transparent 25%),
+		linear-gradient(-45deg, #eef0ee 25%, transparent 25%),
+		linear-gradient(45deg, transparent 75%, #eef0ee 75%),
+		linear-gradient(-45deg, transparent 75%, #eef0ee 75%);
+	background-size: 16px 16px;
+	background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+
+.media-item figcaption {
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+	padding: 0.85rem 1rem 1rem;
+	font-size: 0.875rem;
+	border-top: 1px solid var(--border-light);
+	word-break: break-word;
+}
+
+.media-actions {
+	display: flex;
+	gap: 0.5rem;
+	margin-top: 0.6rem;
+}
+
+.media-actions form {
+	margin: 0;
+}
+
+/* --- Banner picker -------------------------------------------------------- */
+
+.banner-field .banner-picker {
+	margin-bottom: 0.5rem;
+}
+
+.banner-field .banner-thumb {
+	display: block;
+	margin-top: 0.6rem;
+	max-width: 320px;
+	width: 100%;
+	aspect-ratio: 3 / 1;
+	object-fit: cover;
+	border: 1px solid var(--border-light);
+	border-radius: var(--radius-button);
+}
+
+.status--warn {
+	color: #8a5a00;
+}
+
+/* File inputs cannot take the 44px control height cleanly across browsers. */
+.field input[type='file'] {
+	height: auto;
+	padding: 0.6rem 0.75rem;
+	font-weight: 400;
+}
+
 /* --- Admin ---------------------------------------------------------------- */
 
 .page--narrow {
