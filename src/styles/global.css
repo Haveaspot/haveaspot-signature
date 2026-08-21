@@ -512,6 +512,91 @@ fieldset.group legend {
 	margin-bottom: 0.75rem;
 }
 
+/* --- Analytics ------------------------------------------------------------ */
+
+.period-switch {
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+}
+
+.period-switch a {
+	font-weight: 500;
+	font-size: 0.8125rem;
+	color: var(--ink);
+	text-decoration: none;
+	padding: 0.35rem 0.75rem;
+	border: 1px solid var(--border-light);
+	border-radius: 20px;
+	white-space: nowrap;
+}
+
+.period-switch a:hover {
+	border-color: var(--accent);
+	color: var(--accent);
+}
+
+.period-switch a.is-active {
+	background: var(--ink);
+	border-color: var(--ink);
+	color: var(--white);
+}
+
+.analytics-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+	gap: 2rem;
+}
+
+.analytics-grid h2,
+.chart + h2 {
+	font-size: 1rem;
+	font-weight: 700;
+	margin-bottom: 0.75rem;
+}
+
+.chart {
+	margin: 0;
+}
+
+.chart svg {
+	display: block;
+	width: 100%;
+	height: 180px;
+}
+
+/* Day labels sit under the plot, positioned as a percentage of its width so
+   they stay aligned with their bars however many days are shown. */
+.chart-axis {
+	position: relative;
+	height: 1.25rem;
+	margin-top: 0.25rem;
+}
+
+.chart-axis span {
+	position: absolute;
+	font-size: 0.6875rem;
+	font-weight: 300;
+	color: var(--ink);
+	opacity: 0.65;
+	white-space: nowrap;
+	transform: translateX(-50%);
+}
+
+/* Proportion bars inside the breakdown tables. */
+.bar-cell {
+	width: 40%;
+	min-width: 80px;
+}
+
+.bar {
+	display: block;
+	height: 8px;
+	background: var(--ink);
+	border-radius: 20px;
+	min-width: 2px;
+}
+
 /* --- Admin ---------------------------------------------------------------- */
 
 .page--narrow {

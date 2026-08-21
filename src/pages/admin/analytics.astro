@@ -1,0 +1,302 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import BarChart from '../../components/BarChart.astro';
+import {
+	analyticsSummary,
+	analyticsDaily,
+	analyticsBreakdown,
+	analyticsTopStaff,
+	analyticsCampaigns,
+} from '../../lib/admin-db';
+
+export const prerender = false;
+
+/**
+ * Click analytics.
+ *
+ * Everything is read-only and derived from the `clicks` table, which stores a
+ * salted hash of the IP rather than the address itself — so "visitors" is a
+ * count of distinct hashes, good enough to separate ten opens by one person
+ * from ten people, without holding anything identifying.
+ */
+
+const PERIODS = [7, 30, 90] as const;
+const requested = Number(Astro.url.searchParams.get('days'));
+const days = (PERIODS as readonly number[]).includes(requested) ? requested : 30;
+
+let data: {
+	summary: Awaited<ReturnType<typeof analyticsSummary>>;
+	daily: Awaited<ReturnType<typeof analyticsDaily>>;
+	assets: Awaited<ReturnType<typeof analyticsBreakdown>>;
+	clients: Awaited<ReturnType<typeof analyticsBreakdown>>;
+	devices: Awaited<ReturnType<typeof analyticsBreakdown>>;
+	countries: Awaited<ReturnType<typeof analyticsBreakdown>>;
+	staff: Awaited<ReturnType<typeof analyticsTopStaff>>;
+	campaigns: Awaited<ReturnType<typeof analyticsCampaigns>>;
+} | null = null;
+let loadError = '';
+
+try {
+	const [summary, daily, assets, clients, devices, countries, staff, campaigns] =
+		await Promise.all([
+			analyticsSummary(days),
+			analyticsDaily(days),
+			analyticsBreakdown('asset_type', days),
+			analyticsBreakdown('email_client', days),
+			analyticsBreakdown('device_type', days),
+			analyticsBreakdown('country_code', days),
+			analyticsTopStaff(days),
+			analyticsCampaigns(days),
+		]);
+	data = { summary, daily, assets, clients, devices, countries, staff, campaigns };
+} catch (err) {
+	loadError = err instanceof Error ? err.message : String(err);
+}
+
+/** Raw asset_type values are internal; these are what they mean. */
+const ASSET_LABELS: Record<string, string> = {
+	cta_default: 'Banner — default',
+	cta_campaign: 'Banner — campaign',
+	vcard: 'Save contact',
+	website: 'Website icon',
+	mail: 'Mail icon',
+	linkedin: 'LinkedIn icon',
+};
+
+const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+
+function countryName(code: string): string {
+	if (!code || code === '??' || code === 'UNKNOWN') return 'Unknown';
+	try {
+		return regionNames.of(code) ?? code;
+	} catch {
+		return code;
+	}
+}
+
+function share(n: number, total: number): number {
+	return total === 0 ? 0 : Math.round((n / total) * 100);
+}
+---
+
+<AdminLayout
+	title="Analytics"
+	lede="Clicks from signatures already sitting in people's inboxes."
+	section="analytics"
+>
+	<div slot="actions" class="period-switch">
+		{
+			PERIODS.map((p) => (
+				<a href={`/admin/analytics?days=${p}`} class={p === days ? 'is-active' : ''}>
+					{p} days
+				</a>
+			))
+		}
+	</div>
+
+	{
+		loadError ? (
+			<section class="panel panel--error">
+				<h2>Database unavailable</h2>
+				<pre class="error-detail">{loadError}</pre>
+			</section>
+		) : !data ? null : (
+			<>
+				<div class="stat-grid">
+					<div class="stat">
+						<span class="stat-value">{data.summary.clicks}</span>
+						<span class="stat-label">Clicks</span>
+					</div>
+					<div class="stat">
+						<span class="stat-value">{data.summary.visitors}</span>
+						<span class="stat-label">Distinct visitors</span>
+					</div>
+					<div class="stat">
+						<span class="stat-value">{data.summary.staff}</span>
+						<span class="stat-label">Staff with activity</span>
+					</div>
+				</div>
+
+				{data.summary.clicks === 0 ? (
+					<div class="table-wrap">
+						<p class="empty">
+							No clicks in the last {days} days. Clicks are recorded when someone follows a
+							link in a signature — the banner, an icon, or the save-contact card.
+						</p>
+					</div>
+				) : (
+					<>
+						<section style="margin-bottom:2.5rem">
+							<h2>Clicks per day</h2>
+							<BarChart points={data.daily} />
+						</section>
+
+						<div class="analytics-grid">
+							<section>
+								<h2>What was clicked</h2>
+								<div class="table-wrap">
+									<table class="data">
+										<tbody>
+											{
+												data.assets.map((a) => (
+													<tr>
+														<td>{ASSET_LABELS[a.label] ?? a.label}</td>
+														<td class="nowrap">{a.clicks}</td>
+														<td class="bar-cell">
+															<span class="bar" style={`width:${share(a.clicks, data.summary.clicks)}%`} />
+														</td>
+													</tr>
+												))
+											}
+										</tbody>
+									</table>
+								</div>
+							</section>
+
+							<section>
+								<h2>Banner performance</h2>
+								{data.campaigns.length === 0 ? (
+									<div class="table-wrap">
+										<p class="empty">No banner clicks yet.</p>
+									</div>
+								) : (
+									<div class="table-wrap">
+										<table class="data">
+											<thead>
+												<tr>
+													<th>Banner</th>
+													<th>Clicks</th>
+													<th>Visitors</th>
+												</tr>
+											</thead>
+											<tbody>
+												{
+													data.campaigns.map((c) => (
+														<tr>
+															<td>{c.name}</td>
+															<td class="nowrap">{c.clicks}</td>
+															<td class="nowrap">{c.visitors}</td>
+														</tr>
+													))
+												}
+											</tbody>
+										</table>
+									</div>
+								)}
+								<p class="footnote">
+									Campaigns listed against the default, so a campaign can be judged rather
+									than just counted.
+								</p>
+							</section>
+
+							<section>
+								<h2>Mail client</h2>
+								<div class="table-wrap">
+									<table class="data">
+										<tbody>
+											{
+												data.clients.map((c) => (
+													<tr>
+														<td>{c.label}</td>
+														<td class="nowrap">{c.clicks}</td>
+														<td class="bar-cell">
+															<span class="bar" style={`width:${share(c.clicks, data.summary.clicks)}%`} />
+														</td>
+													</tr>
+												))
+											}
+										</tbody>
+									</table>
+								</div>
+								<p class="footnote">
+									Guessed from the user agent. Gmail proxies image requests, so its share is
+									approximate rather than exact.
+								</p>
+							</section>
+
+							<section>
+								<h2>Device</h2>
+								<div class="table-wrap">
+									<table class="data">
+										<tbody>
+											{
+												data.devices.map((d) => (
+													<tr>
+														<td>{d.label}</td>
+														<td class="nowrap">{d.clicks}</td>
+														<td class="bar-cell">
+															<span class="bar" style={`width:${share(d.clicks, data.summary.clicks)}%`} />
+														</td>
+													</tr>
+												))
+											}
+										</tbody>
+									</table>
+								</div>
+							</section>
+
+							<section>
+								<h2>Country</h2>
+								<div class="table-wrap">
+									<table class="data">
+										<tbody>
+											{
+												data.countries.map((c) => (
+													<tr>
+														<td>{countryName(c.label)}</td>
+														<td class="nowrap">{c.clicks}</td>
+														<td class="bar-cell">
+															<span class="bar" style={`width:${share(c.clicks, data.summary.clicks)}%`} />
+														</td>
+													</tr>
+												))
+											}
+										</tbody>
+									</table>
+								</div>
+							</section>
+
+							<section>
+								<h2>Most clicked signatures</h2>
+								<div class="table-wrap">
+									<table class="data">
+										<thead>
+											<tr>
+												<th>Person</th>
+												<th>Clicks</th>
+											</tr>
+										</thead>
+										<tbody>
+											{
+												data.staff.map((s) => (
+													<tr>
+														<td>
+															{s.id ? (
+																<a href={`/admin/signatures/${s.id}`}>{s.name}</a>
+															) : (
+																<span title="No matching staff record — they may have been deleted">
+																	{s.name}
+																</span>
+															)}
+															<div class="muted">{s.email}</div>
+														</td>
+														<td class="nowrap">{s.clicks}</td>
+													</tr>
+												))
+											}
+										</tbody>
+									</table>
+								</div>
+							</section>
+						</div>
+					</>
+				)}
+
+				<p class="footnote">
+					Visitors are counted by a salted hash of the IP address — enough to tell ten opens by
+					one person from ten people, without storing anything identifying. Dates are UK local.
+				</p>
+			</>
+		)
+	}
+</AdminLayout>

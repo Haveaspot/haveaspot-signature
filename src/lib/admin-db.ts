@@ -330,3 +330,143 @@ export function campaignStatus(c: CampaignRow): {
 	if (now > new Date(c.ends_at).getTime()) return { label: 'Ended', tone: 'ended' };
 	return { label: 'Live now', tone: 'live' };
 }
+
+// -----------------------------------------------------------------------------
+// Analytics
+// -----------------------------------------------------------------------------
+
+/**
+ * Everything here groups by UK local date, not UTC, using the same timezone as
+ * campaign scheduling. Grouping by UTC would put early-morning BST clicks on
+ * the previous day and make a daily chart quietly disagree with the campaign
+ * windows shown elsewhere.
+ */
+
+export interface AnalyticsSummary {
+	clicks: number;
+	visitors: number;
+	staff: number;
+}
+
+export async function analyticsSummary(days: number): Promise<AnalyticsSummary> {
+	const rows = await sql<AnalyticsSummary[]>`
+		SELECT count(*)::int                      AS clicks,
+		       count(DISTINCT visitor_hash)::int  AS visitors,
+		       count(DISTINCT sender_email)::int  AS staff
+		FROM clicks
+		WHERE clicked_at > now() - (${days} || ' days')::interval
+	`;
+	return rows[0] ?? { clicks: 0, visitors: 0, staff: 0 };
+}
+
+export interface DayPoint {
+	day: string;
+	clicks: number;
+}
+
+/**
+ * Daily series with gaps filled.
+ *
+ * `generate_series` produces every day in the window whether or not it had a
+ * click, so a quiet Sunday shows as a zero-height bar rather than being dropped
+ * and silently compressing the timeline.
+ */
+export async function analyticsDaily(days: number): Promise<DayPoint[]> {
+	return sql<DayPoint[]>`
+		WITH span AS (
+			SELECT generate_series(
+				(now() AT TIME ZONE ${CAMPAIGN_TZ})::date - (${days - 1} || ' days')::interval,
+				(now() AT TIME ZONE ${CAMPAIGN_TZ})::date,
+				'1 day'
+			)::date AS day
+		)
+		SELECT to_char(span.day, 'YYYY-MM-DD') AS day,
+		       count(c.id)::int AS clicks
+		FROM span
+		LEFT JOIN clicks c
+		  ON (c.clicked_at AT TIME ZONE ${CAMPAIGN_TZ})::date = span.day
+		GROUP BY span.day
+		ORDER BY span.day
+	`;
+}
+
+export interface Breakdown {
+	label: string;
+	clicks: number;
+}
+
+/** Counts for one column, biggest first. Column name is whitelisted, not free. */
+export async function analyticsBreakdown(
+	column: 'asset_type' | 'email_client' | 'device_type' | 'os_platform' | 'country_code',
+	days: number,
+): Promise<Breakdown[]> {
+	// Interpolating a column name has to be done with sql(), which quotes it as
+	// an identifier — never by string concatenation.
+	return sql<Breakdown[]>`
+		SELECT ${sql(column)}::text AS label, count(*)::int AS clicks
+		FROM clicks
+		WHERE clicked_at > now() - (${days} || ' days')::interval
+		GROUP BY 1
+		ORDER BY clicks DESC, label
+	`;
+}
+
+export interface StaffClicks {
+	id: number | null;
+	name: string;
+	email: string;
+	clicks: number;
+}
+
+/**
+ * Grouped by sender_email, not by signature_id.
+ *
+ * A click carries both, but signature_id is null when the click was recorded
+ * before that person's record existed or after it was deleted. Grouping by the
+ * id therefore split one person across two rows — a named one and a bare email
+ * — which read as two people and contradicted the "staff with activity" count
+ * above it. The email is the stable identity; the id is looked up from it so
+ * the row can still link through where a record exists.
+ */
+export async function analyticsTopStaff(days: number, limit = 10): Promise<StaffClicks[]> {
+	return sql<StaffClicks[]>`
+		SELECT max(s.id) AS id,
+		       COALESCE(
+		         NULLIF(trim(max(s.first_name) || ' ' || max(s.last_name)), ''),
+		         c.sender_email
+		       ) AS name,
+		       c.sender_email AS email,
+		       count(*)::int AS clicks
+		FROM clicks c
+		LEFT JOIN signatures s ON s.email = c.sender_email
+		WHERE c.clicked_at > now() - (${days} || ' days')::interval
+		GROUP BY c.sender_email
+		ORDER BY clicks DESC
+		LIMIT ${limit}
+	`;
+}
+
+export interface CampaignClicks {
+	name: string;
+	clicks: number;
+	visitors: number;
+}
+
+/**
+ * Campaign clicks against the default, so a campaign can be judged rather than
+ * merely counted. The default is included as a row so the comparison is on the
+ * same axis.
+ */
+export async function analyticsCampaigns(days: number): Promise<CampaignClicks[]> {
+	return sql<CampaignClicks[]>`
+		SELECT COALESCE(ca.name, 'Default banner') AS name,
+		       count(*)::int AS clicks,
+		       count(DISTINCT c.visitor_hash)::int AS visitors
+		FROM clicks c
+		LEFT JOIN campaigns ca ON ca.id = c.campaign_id
+		WHERE c.asset_type IN ('cta_campaign', 'cta_default')
+		  AND c.clicked_at > now() - (${days} || ' days')::interval
+		GROUP BY ca.name
+		ORDER BY clicks DESC
+	`;
+}

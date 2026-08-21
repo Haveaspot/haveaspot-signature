@@ -12,6 +12,7 @@
     "astro": "astro",
     "db:push": "node --env-file=.env scripts/db-push.mjs",
     "build:assets": "node scripts/build-assets.mjs",
+    "seed:clicks": "node scripts/seed-dev-clicks.mjs",
     "test": "node scripts/test.mjs"
   },
   "dependencies": {

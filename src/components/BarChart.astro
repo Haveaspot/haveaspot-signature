@@ -1,0 +1,90 @@
+---
+import { brand } from '../lib/brand';
+
+interface Props {
+	points: { day: string; clicks: number }[];
+	height?: number;
+}
+
+const { points, height = 180 } = Astro.props;
+
+/**
+ * Daily clicks as inline SVG.
+ *
+ * Server-rendered rather than a charting library: no CDN dependency, nothing to
+ * load, it works with JavaScript off, and the brand colours are applied
+ * directly instead of fought with through a theming API. The dataset is one
+ * bar per day over at most 90 days, which is well within what hand-drawn SVG
+ * handles comfortably.
+ */
+const max = Math.max(1, ...points.map((p) => p.clicks));
+const width = 1000;
+const padY = 18;
+const plotH = height - padY * 2;
+
+const gap = points.length > 60 ? 1 : 3;
+const barW = Math.max(1, width / Math.max(1, points.length) - gap);
+
+const fmtDay = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
+
+/** A handful of x labels — one per bar would be unreadable at 90 days. */
+const labelEvery = Math.max(1, Math.ceil(points.length / 6));
+---
+
+{
+	points.length === 0 ? (
+		<p class="empty">No clicks in this period.</p>
+	) : (
+		<figure class="chart">
+			<svg
+				viewBox={`0 0 ${width} ${height}`}
+				preserveAspectRatio="none"
+				role="img"
+				aria-label={`Daily clicks. Peak ${max} on a single day.`}
+			>
+				{/* Baseline, so an all-zero chart still reads as a chart. */}
+				<line
+					x1="0"
+					y1={height - padY}
+					x2={width}
+					y2={height - padY}
+					stroke={brand.borderLight}
+					stroke-width="1"
+				/>
+				{
+					points.map((p, i) => {
+						const h = (p.clicks / max) * plotH;
+						const x = i * (width / points.length);
+						return (
+							<rect
+								x={x}
+								y={height - padY - h}
+								width={barW}
+								height={Math.max(h, p.clicks > 0 ? 2 : 0)}
+								fill={brand.ink}
+							>
+								<title>{`${p.day}: ${p.clicks} click${p.clicks === 1 ? '' : 's'}`}</title>
+							</rect>
+						);
+					})
+				}
+			</svg>
+
+			<div class="chart-axis">
+				{
+					points.map((p, i) =>
+						i % labelEvery === 0 ? (
+							<span style={`left:${(i / points.length) * 100}%`}>
+								{fmtDay.format(new Date(`${p.day}T12:00:00`))}
+							</span>
+						) : null,
+					)
+				}
+			</div>
+
+			<figcaption class="footnote">
+				Peak {max} click{max === 1 ? '' : 's'} in a day. Hover a bar for its date.
+			</figcaption>
+		</figure>
+	)
+}

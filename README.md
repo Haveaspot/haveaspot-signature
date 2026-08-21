@@ -209,12 +209,21 @@ environment variables in the Vercel project:
 the signature as an absolute URL, and a `localhost` URL in a colleague's Gmail
 resolves to nothing.
 
+### Working on the admin locally
+
+The admin screens need a database. Create a **Neon branch** of the production
+database, put its connection string in `.env` as `POSTGRES_URL`, and work
+against that — building CRUD means deliberately creating and deleting records,
+which is not something to do against live staff data.
+
+`npm run seed:clicks -- --yes-i-am-on-a-dev-branch` fills the clicks table with
+90 days of plausible sample data for working on analytics. It refuses to run
+without that argument and prints the host first, because the rows it writes
+would corrupt real reporting. Remove them with
+`DELETE FROM clicks WHERE visitor_hash LIKE 'seed-%';`.
+
 ## Still to build
 
-- `/admin` — the CRUD screens for signatures, departments, campaigns and
-  settings, plus the analytics dashboard (the plugin had a Chart.js timeline and
-  asset breakdowns). Authentication and the dashboard shell are in place; the
-  screens themselves are not built yet.
 - Rate limiting on `/api/sync`.
 - Promo images assume a 3:1 aspect ratio; the upload UI should enforce it, or
   the renderer should read real dimensions.
