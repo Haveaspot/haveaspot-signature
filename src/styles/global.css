@@ -10,9 +10,29 @@
 	--surface: #f9fafb;
 	--border-light: #e5e7eb;
 	--white: #ffffff;
-	--muted: #6b7280;
 
 	--font: 'Poppins', system-ui, -apple-system, sans-serif;
+
+	--radius-card: 12px;
+	--radius-button: 6px;
+	--radius-input: 6px;
+	--radius-pill: 20px;
+
+	--transition-base: 0.2s ease;
+}
+
+/*
+ * Brand focus ring, on everything focusable rather than inputs alone.
+ * :focus-visible so it appears for keyboard navigation and not on mouse clicks.
+ */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
 }
 
 *,
@@ -80,9 +100,13 @@ h3 {
 
 /* --- Form ----------------------------------------------------------------- */
 
+/* Brand card: white, 2px ink border, 12px radius. Previously a dashed border on
+   a grey fill — the same legacy treatment that was removed from the signature
+   itself, left behind here. */
 .panel {
-	background: var(--surface);
-	border: 1px dashed var(--ink);
+	background: var(--white);
+	border: 2px solid var(--ink);
+	border-radius: var(--radius-card);
 	padding: 1.75rem;
 }
 
@@ -103,28 +127,52 @@ h3 {
 	margin-bottom: 0.35rem;
 }
 
-.field input {
+.field input,
+.field textarea,
+.field select {
 	width: 100%;
-	padding: 0.7rem 0.75rem;
+	height: 44px;
+	padding: 0 1rem;
 	font-family: var(--font);
-	font-size: 0.9375rem;
+	font-size: 1rem;
+	font-weight: 500;
 	color: var(--ink);
 	background: var(--white);
-	border: 1px solid var(--border-light);
-	border-radius: 0;
+	/* Ink, not --border-light: the guide reserves the pale border for dividers
+	   and non-featured edges, and gives form controls the brand dark. */
+	border: 1px solid var(--ink);
+	border-radius: var(--radius-input);
+	transition: border-color var(--transition-base), box-shadow var(--transition-base);
 }
 
-.field input:focus-visible {
-	outline: 2px solid var(--accent);
-	outline-offset: 1px;
+.field input::placeholder,
+.field textarea::placeholder {
+	color: var(--ink);
+	opacity: 0.45;
+	font-weight: 400;
+}
+
+.field input:hover,
+.field textarea:hover,
+.field select:hover {
 	border-color: var(--accent);
 }
 
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+	outline: none;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px rgba(10, 173, 10, 0.08);
+}
+
+/* Secondary text is the same ink at weight 300 — the guide is explicit that
+   lightness comes from weight, never from fading the colour to grey. */
 .field .hint {
 	display: block;
 	font-weight: 300;
 	font-size: 0.8125rem;
-	color: var(--muted);
+	color: var(--ink);
 	margin-top: 0.25rem;
 }
 
@@ -153,17 +201,23 @@ h3 {
 
 .btn {
 	appearance: none;
-	display: inline-block;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 44px; /* brand touch target */
+	padding: 0 1.5rem;
 	font-family: var(--font);
 	font-weight: 500; /* Medium — buttons */
-	font-size: 0.9375rem;
-	line-height: 1.2;
-	padding: 0.875rem 1.5rem;
+	font-size: 1rem;
+	line-height: 1;
 	color: var(--white);
 	background: var(--ink);
 	border: 1px solid var(--ink);
+	border-radius: var(--radius-button);
+	text-decoration: none;
 	cursor: pointer;
-	transition: background 0.15s ease, border-color 0.15s ease;
+	transition: background-color var(--transition-base), border-color var(--transition-base),
+		color var(--transition-base);
 }
 
 .btn:hover {
@@ -224,6 +278,7 @@ h3 {
 	padding: 1.25rem;
 	background: var(--white);
 	border: 1px solid var(--border-light);
+	border-radius: var(--radius-card);
 }
 
 .preview-stage--dark {
@@ -232,7 +287,7 @@ h3 {
 
 .preview-empty {
 	font-weight: 300;
-	color: var(--muted);
+	color: var(--ink);
 	font-size: 0.9375rem;
 }
 
@@ -302,10 +357,13 @@ h3 {
 	margin: 0;
 }
 
+/* Table-row actions, where a 44px control would dominate the row. Everything
+   else keeps the brand's 44px target. */
 .btn--small {
 	height: 32px;
 	padding: 0 0.75rem;
 	font-size: 0.8125rem;
+	border-radius: var(--radius-button);
 }
 
 /* --- Tables --------------------------------------------------------------- */
@@ -313,6 +371,7 @@ h3 {
 .table-wrap {
 	overflow-x: auto;
 	border: 1px solid var(--border-light);
+	border-radius: var(--radius-card);
 }
 
 table.data {
@@ -368,7 +427,7 @@ table.data td.nowrap {
 	font-weight: 500;
 	font-size: 0.75rem;
 	padding: 0.15rem 0.55rem;
-	border-radius: 20px;
+	border-radius: var(--radius-pill);
 	border: 1px solid var(--border-light);
 	white-space: nowrap;
 }
@@ -391,29 +450,14 @@ table.data td.nowrap {
 
 /* --- Forms ---------------------------------------------------------------- */
 
-.field textarea,
-.field select {
-	width: 100%;
-	padding: 0.7rem 0.75rem;
-	font-family: var(--font);
-	font-size: 0.9375rem;
-	color: var(--ink);
-	background: var(--white);
-	border: 1px solid var(--border-light);
-	border-radius: 0;
-}
-
+/* A textarea is the one control that must not keep the 44px control height. */
 .field textarea {
+	height: auto;
 	min-height: 8rem;
+	padding: 0.75rem 1rem;
 	line-height: 1.5;
+	font-weight: 400;
 	resize: vertical;
-}
-
-.field textarea:focus-visible,
-.field select:focus-visible {
-	outline: 2px solid var(--accent);
-	outline-offset: 1px;
-	border-color: var(--accent);
 }
 
 .check {
@@ -443,6 +487,7 @@ table.data td.nowrap {
 
 fieldset.group {
 	border: 1px solid var(--border-light);
+	border-radius: var(--radius-card);
 	padding: 1.25rem;
 	margin: 0 0 1.5rem;
 }
@@ -527,7 +572,7 @@ fieldset.group legend {
 	text-decoration: none;
 	padding: 0.35rem 0.75rem;
 	border: 1px solid var(--border-light);
-	border-radius: 20px;
+	border-radius: var(--radius-pill);
 	white-space: nowrap;
 }
 
@@ -593,7 +638,7 @@ fieldset.group legend {
 	display: block;
 	height: 8px;
 	background: var(--ink);
-	border-radius: 20px;
+	border-radius: var(--radius-pill);
 	min-width: 2px;
 }
 
@@ -630,6 +675,7 @@ fieldset.group legend {
 	padding: 1.25rem;
 	background: var(--surface);
 	border: 1px solid var(--border-light);
+	border-radius: var(--radius-card);
 }
 
 .stat--link {
@@ -643,6 +689,16 @@ fieldset.group legend {
 	transform: translateY(-2px);
 }
 
+/* The guide's card hover is border + lift together, not a shadow. */
+.panel--interactive {
+	transition: border-color var(--transition-base), transform var(--transition-base);
+}
+
+.panel--interactive:hover {
+	border-color: var(--accent);
+	transform: translateY(-2px);
+}
+
 .stat-value {
 	font-weight: 800;
 	font-size: 1.75rem;
@@ -652,12 +708,12 @@ fieldset.group legend {
 .stat-label {
 	font-weight: 300;
 	font-size: 0.8125rem;
-	color: var(--muted);
+	color: var(--ink);
 }
 
 .panel--error {
 	background: #fef3f2;
-	border: 1px solid #f9a8a2;
+	border: 2px solid #f9a8a2;
 }
 
 .error-detail {
@@ -667,12 +723,13 @@ fieldset.group legend {
 	font-size: 0.8125rem;
 	background: var(--white);
 	border: 1px solid var(--border-light);
+	border-radius: var(--radius-button);
 }
 
 .footnote {
 	font-weight: 300;
 	font-size: 0.8125rem;
-	color: var(--muted);
+	color: var(--ink);
 	margin: 1rem 0 0;
 }
 
@@ -695,7 +752,7 @@ fieldset.group legend {
 	margin: 0 0 0.35rem;
 	font-weight: 300; /* Light — fine print */
 	font-size: 0.8125rem;
-	color: var(--muted);
+	color: var(--ink);
 }
 
 .site-footer p:last-child {
@@ -703,7 +760,7 @@ fieldset.group legend {
 }
 
 .site-footer a {
-	color: var(--muted);
+	color: var(--ink);
 	text-decoration: underline;
 	text-underline-offset: 2px;
 }
