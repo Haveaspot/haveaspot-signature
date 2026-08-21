@@ -79,17 +79,25 @@ export const weights = {
 export const darkModeInk = '#FFFFFF';
 export const darkModeSurface = '#111111';
 /**
- * Divider in dark mode. `#E5E7EB` would glare against a near-black background,
- * so the same hairline is expressed as a low-opacity white instead.
+ * Dark-mode surfaces and lines, as solid colours rather than translucent white.
+ *
+ * They were `rgba(255,255,255,0.06)` and `0.16` over `#111111`, which is the
+ * same idea but only works when composited over a known backdrop. The CTA block
+ * is a PNG whose background has to *match* the pill exactly, and an image
+ * cannot composite against the reader's backdrop — so both are pinned to the
+ * colours those washes resolve to. Solid values are also safer in email, where
+ * rgba support is uneven.
  */
-export const darkModeDivider = 'rgba(255,255,255,0.16)';
+export const darkModePillSurface = '#1F1F1F'; // rgba(255,255,255,0.06) over #111
+export const darkModeDivider = '#373737'; // rgba(255,255,255,0.16) over #111
 
 /**
- * The logo pill in dark mode.
+ * The CTA button in dark mode.
  *
- * It cannot simply keep its `#F9FAFB` fill: the logo swaps to the white
- * wordmark in dark mode, and a white mark on a near-white pill is invisible.
- * The same "subtle raised surface" idea is expressed as a faint light wash on
- * the dark background instead.
+ * Inverted from light mode, where the button is ink on white: against a dark
+ * card, ink would disappear, so the brand green carries it instead. This is the
+ * one place green appears in the signature, and it matches the brand's own
+ * primary-button hover treatment (green fill, white label).
  */
-export const darkModePillSurface = 'rgba(255,255,255,0.06)';
+export const darkModeButtonSurface = brand.accent;
+export const darkModeButtonLabel = '#FFFFFF';

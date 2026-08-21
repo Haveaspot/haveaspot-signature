@@ -140,6 +140,21 @@ checks.push([
 	/\.hsig-logo-pill, \.hsig-icon-pill \{/.test(html),
 ]);
 
+// --- CTA dark mode ----------------------------------------------------------
+// The CTA is a PNG and cannot answer a media query, so both themes are rendered
+// and swapped by CSS — the same approach as the logo.
+checks.push(['light CTA render requested', html.includes('section=card&theme=light')]);
+checks.push(['dark CTA render requested', html.includes('section=card&theme=dark')]);
+checks.push([
+	'dark CTA hidden by default',
+	html.includes('class="hsig-cta-dark" style="display:none;'),
+]);
+checks.push([
+	'dark CTA hidden from Outlook',
+	/hsig-cta-dark[^>]*mso-hide:all/.test(html),
+]);
+checks.push(['CTA swaps in dark mode', /\.hsig-cta-light \{ display: none/.test(html)]);
+
 // --- Contact line -----------------------------------------------------------
 // Phones belong on their own line under the email, and the pipe is a separator
 // between numbers rather than a prefix on each — so nothing starts with a pipe.
@@ -220,7 +235,15 @@ const promoOnly = renderSignature({
 // whether that is heading + button or the promo alone, so the markup asks for
 // one `section=card` either way and there is no second request to drop.
 checks.push(['promoOnly still renders one CTA image', promoOnly.includes('section=card')]);
-checks.push(['CTA is a single image', (html.match(/section=card/g) ?? []).length === 1]);
+// Two card requests, not one: they are the light and dark alternates, only one
+// of which is ever displayed. The point of the earlier merge stands — heading
+// and button are one composition rather than two stacked images — so what
+// matters is that there is no separate button render.
+checks.push(['CTA card requested once per theme', (html.match(/section=card/g) ?? []).length === 2]);
+checks.push([
+	'exactly one CTA visible at a time',
+	(html.match(/class="hsig-cta-dark" style="display:none;/g) ?? []).length === 1,
+]);
 checks.push(['no separate button image', !html.includes('section=button')]);
 
 // Heading helpers

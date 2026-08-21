@@ -160,9 +160,10 @@ const rendered = variants.map((variant) => {
 		});
 		if (variant.config.promoImageUrl) params.set('promo', variant.config.promoImageUrl);
 		if (variant.config.promoOnly) params.set('promoOnly', '1');
+		// Carry the theme through, or the dark pane would show the light card.
 		html = html.replace(
-			/\/api\/cta\?[^"]*section=([a-z]+)[^"]*/g,
-			(_m, section) => `/dev/cta?section=${section}&${params.toString()}`,
+			/\/api\/cta\?[^"]*section=([a-z]+)&theme=([a-z]+)[^"]*/g,
+			(_m, section, theme) => `/dev/cta?section=${section}&theme=${theme}&${params.toString()}`,
 		);
 	}
 

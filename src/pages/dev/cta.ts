@@ -34,5 +34,6 @@ export const GET: APIRoute = async ({ url }) => {
 		signature: null,
 	};
 
-	return drawCta(config, url.searchParams.get('section') ?? 'card');
+	const theme = url.searchParams.get('theme') === 'dark' ? 'dark' : 'light';
+	return drawCta(config, url.searchParams.get('section') ?? 'card', theme);
 };

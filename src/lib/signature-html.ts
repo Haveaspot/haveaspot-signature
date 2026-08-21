@@ -107,6 +107,10 @@ const DARK_RULES: readonly (readonly [string, string])[] = [
 	['.hsig-icon', 'filter: brightness(0) invert(1) !important;'],
 	['.hsig-logo-light', 'display: none !important;'],
 	['.hsig-logo-dark', 'display: block !important;'],
+	// The CTA is a PNG and cannot answer a media query, so two renders ship and
+	// the query picks one — exactly as with the logo.
+	['.hsig-cta-light', 'display: none !important;'],
+	['.hsig-cta-dark', 'display: block !important;'],
 ];
 
 /**
@@ -155,8 +159,8 @@ export function renderSignature(opts: {
 
 	// Every URL baked into the signature must be absolute — the email is read
 	// far away from this server.
-	const ctaImage = (section: string) =>
-		`${baseUrl}/api/cta?user=${q}&section=${section}&v=${v}`;
+	const ctaImage = (section: string, theme: 'light' | 'dark') =>
+		`${baseUrl}/api/cta?user=${q}&section=${section}&theme=${theme}&v=${v}`;
 	const track = (asset: string) => `${baseUrl}/api/track/${asset}?user=${q}`;
 	const vcardUrl = `${baseUrl}/api/vcard?user=${q}`;
 	const ctaLink = `${baseUrl}/api/track/cta?user=${q}`;
@@ -274,13 +278,18 @@ export function renderSignature(opts: {
 	 * Omitted entirely when disabled rather than rendered as a transparent
 	 * spacer, so there is no stray element for Outlook to mis-space.
 	 */
+	const ctaAlt = esc(config.headingText.replace(/\s*\|\s*/g, ' '));
+
 	const ctaRow = config.disableCta
 		? ''
 		: `
 		<tr>
 			<td align="left" style="padding:0 0 28px 0; font-size:0; line-height:0; text-align:left;">
 				<a href="${esc(ctaLink)}" target="_blank" style="display:block; border:none; text-decoration:none; font-size:0; line-height:0;">
-					<img src="${ctaImage('card')}" width="600" alt="${esc(config.headingText.replace(/\s*\|\s*/g, ' '))}" style="display:block; border:none; outline:none; margin:0; padding:0; width:100%; max-width:600px; height:auto;">
+					<img src="${ctaImage('card', 'light')}" width="600" alt="${ctaAlt}" class="hsig-cta-light" style="display:block; border:none; outline:none; margin:0; padding:0; width:100%; max-width:600px; height:auto;">
+					<!--[if !mso]><!-->
+					<img src="${ctaImage('card', 'dark')}" width="600" alt="${ctaAlt}" class="hsig-cta-dark" style="display:none; border:none; outline:none; margin:0; padding:0; width:100%; max-width:600px; height:auto; mso-hide:all;">
+					<!--<![endif]-->
 				</a>
 			</td>
 		</tr>`;

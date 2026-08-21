@@ -2,7 +2,16 @@ import type { APIRoute } from 'astro';
 import { ImageResponse } from '@vercel/og';
 import { resolveCtaConfig } from '../../lib/campaigns';
 import type { CtaConfig } from '../../lib/campaigns';
-import { brand, radius, BUTTON_HEIGHT } from '../../lib/brand';
+import {
+	brand,
+	radius,
+	BUTTON_HEIGHT,
+	darkModePillSurface,
+	darkModeDivider,
+	darkModeInk,
+	darkModeButtonSurface,
+	darkModeButtonLabel,
+} from '../../lib/brand';
 import { h, loadFonts, estimateLines, headingLines } from '../../lib/og';
 
 export const prerender = false;
@@ -18,10 +27,11 @@ export const prerender = false;
  * Why an image at all, when the surrounding signature is HTML: because the
  * signature is pasted into a mail client once and frozen, whereas this URL is
  * fetched afresh every time the email is opened. It is the only part of the
- * signature that a campaign can change after the fact. The cost of that is real
- * — an image cannot respond to the reader's dark mode — which is why the block
- * is drawn as a white brand card that reads as deliberate against a dark
- * background rather than as a broken band.
+ * signature that a campaign can change after the fact.
+ *
+ * An image cannot answer a media query, so dark mode is handled by rendering
+ * the card twice — `?theme=light` and `?theme=dark` — and letting the
+ * signature's CSS show one and hide the other.
  *
  * Everything is drawn at 2x and displayed at 600 CSS px, so the artwork stays
  * sharp on retina screens. The `px()` helper keeps the code in brand units.
@@ -72,12 +82,13 @@ function blankResponse(): Response {
 export const GET: APIRoute = async ({ url }) => {
 	const email = (url.searchParams.get('user') ?? '').toLowerCase().trim();
 	const section = url.searchParams.get('section') ?? 'card';
+	const theme = url.searchParams.get('theme') === 'dark' ? 'dark' : 'light';
 
 	if (!email) return blankResponse();
 
 	try {
 		const config = await resolveCtaConfig(email);
-		return await drawCta(config, section);
+		return await drawCta(config, section, theme);
 	} catch (error) {
 		// Never surface an error status here. These URLs are embedded in emails
 		// that are already sent, and a non-image response renders as a broken-image
@@ -88,17 +99,37 @@ export const GET: APIRoute = async ({ url }) => {
 	}
 };
 
+export type CtaTheme = 'light' | 'dark';
+
 /**
  * Draw the CTA image from an already-resolved config.
  *
  * Split from the route so it can be rendered without a database — the dev
  * preview needs to show the real artwork while iterating on the design, and
  * requiring Postgres for that would make the preview useless on a laptop.
+ *
+ * `theme` exists because an image cannot answer a media query: the mail client
+ * just fetches a URL and tells the server nothing about the reader's
+ * appearance setting. So both themes are rendered as separate images and the
+ * signature's CSS swaps between them, the same way it swaps the logo.
  */
-export async function drawCta(config: CtaConfig, section: string): Promise<Response> {
+export async function drawCta(
+	config: CtaConfig,
+	section: string,
+	theme: CtaTheme = 'light',
+): Promise<Response> {
 	if (config.disableCta) return blankResponse();
 
 	const fonts = await loadFonts();
+	const dark = theme === 'dark';
+
+	// The dark card must match the logo pill's fill exactly, since the two sit
+	// one above the other in the same signature.
+	const surface = dark ? darkModePillSurface : brand.white;
+	const borderColour = dark ? darkModeDivider : brand.ink;
+	const textColour = dark ? darkModeInk : brand.ink;
+	const buttonSurface = dark ? darkModeButtonSurface : brand.ink;
+	const buttonLabel = dark ? darkModeButtonLabel : brand.white;
 
 	const hasPromo = !config.disablePromo && Boolean(config.promoImageUrl);
 	// Promo art is assumed 3:1. The admin upload should enforce that, or this
@@ -110,7 +141,7 @@ export async function drawCta(config: CtaConfig, section: string): Promise<Respo
 		if (!hasPromo) return blankResponse();
 
 		return new ImageResponse(
-			card([
+			card(surface, borderColour, [
 				h('img', {
 					src: config.promoImageUrl,
 					style: {
@@ -145,7 +176,7 @@ export async function drawCta(config: CtaConfig, section: string): Promise<Respo
 		px(BUTTON_HEIGHT);
 
 	return new ImageResponse(
-		card([
+		card(surface, borderColour, [
 			h(
 				'div',
 				{ style: { display: 'flex', flexDirection: 'column' } },
@@ -159,7 +190,7 @@ export async function drawCta(config: CtaConfig, section: string): Promise<Respo
 								// Weight 400 — body copy. The heading is a sentence, not a
 								// display heading, and 800 here would shout.
 								fontWeight: 400,
-								color: brand.ink,
+								color: textColour,
 							},
 						},
 						line,
@@ -191,8 +222,8 @@ export async function drawCta(config: CtaConfig, section: string): Promise<Respo
 						marginTop: `${HEADING_GAP}px`,
 						height: `${px(BUTTON_HEIGHT)}px`,
 						padding: `0 ${px(24)}px`,
-						backgroundColor: brand.ink,
-						color: brand.white,
+						backgroundColor: buttonSurface,
+						color: buttonLabel,
 						borderRadius: `${px(radius.button)}px`,
 						fontSize: BUTTON_FONT,
 						fontWeight: 500,
@@ -212,7 +243,7 @@ export async function drawCta(config: CtaConfig, section: string): Promise<Respo
  * stray white rectangle when the reader is in dark mode — the one place the
  * image-based approach would otherwise look broken.
  */
-function card(children: unknown[]) {
+function card(surface: string, borderColour: string, children: unknown[]) {
 	return h(
 		'div',
 		{
@@ -224,8 +255,8 @@ function card(children: unknown[]) {
 				alignItems: 'flex-start',
 				boxSizing: 'border-box',
 				padding: `${PADDING}px`,
-				backgroundColor: brand.white,
-				border: `${BORDER}px solid ${brand.ink}`,
+				backgroundColor: surface,
+				border: `${BORDER}px solid ${borderColour}`,
 				borderRadius: `${px(radius.card)}px`,
 				fontFamily: 'Poppins',
 			},
