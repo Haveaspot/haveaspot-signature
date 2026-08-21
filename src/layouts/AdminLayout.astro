@@ -1,0 +1,74 @@
+---
+import '../styles/global.css';
+
+interface Props {
+	title: string;
+	lede?: string;
+	/** Highlights the current section in the nav. */
+	section?: 'dashboard' | 'signatures' | 'departments' | 'campaigns' | 'settings' | 'analytics';
+}
+
+const { title, lede, section } = Astro.props;
+
+/**
+ * Shared chrome for every admin page.
+ *
+ * Access is enforced in src/middleware.ts, not here — everything under /admin
+ * is gated by default, so no page carries auth logic of its own and a new one
+ * cannot ship unprotected by omission.
+ */
+const nav = [
+	{ href: '/admin', label: 'Dashboard', key: 'dashboard' },
+	{ href: '/admin/signatures', label: 'Staff', key: 'signatures' },
+	{ href: '/admin/departments', label: 'Departments', key: 'departments' },
+	{ href: '/admin/campaigns', label: 'Campaigns', key: 'campaigns' },
+	{ href: '/admin/settings', label: 'Settings', key: 'settings' },
+	{ href: '/admin/analytics', label: 'Analytics', key: 'analytics' },
+] as const;
+---
+
+<html lang="en-GB">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="robots" content="noindex, nofollow" />
+		<title>{title} — Haveaspot Signatures</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+			rel="stylesheet"
+		/>
+	</head>
+	<body>
+		<header class="admin-bar">
+			<div class="admin-bar__inner">
+				<a href="/admin" class="admin-brand">Signatures</a>
+				<nav class="admin-nav">
+					{
+						nav.map((item) => (
+							<a href={item.href} class={item.key === section ? 'is-active' : ''}>
+								{item.label}
+							</a>
+						))
+					}
+				</nav>
+				<form method="POST" action="/admin/logout" class="admin-bar__out">
+					<button type="submit" class="btn btn--secondary btn--small">Sign out</button>
+				</form>
+			</div>
+		</header>
+
+		<main class="page">
+			<div class="admin-header">
+				<div>
+					<h1>{title}</h1>
+					{lede && <p class="lede">{lede}</p>}
+				</div>
+				<slot name="actions" />
+			</div>
+
+			<slot />
+		</main>
+	</body>
+</html>

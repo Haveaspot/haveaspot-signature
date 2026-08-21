@@ -1,0 +1,209 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getSettings, setSetting, SETTING_DEFAULTS } from '../../lib/settings';
+import type { SettingKey } from '../../lib/settings';
+
+export const prerender = false;
+
+/**
+ * Global settings editor.
+ *
+ * These are the values the signature falls back to when no per-user override
+ * and no live campaign apply — the bottom layer of the precedence chain in
+ * src/lib/campaigns.ts.
+ *
+ * Saving is a plain form POST to this same page rather than a JSON endpoint:
+ * it works without client JavaScript, and Astro's origin check gives CSRF
+ * protection for free.
+ */
+
+/** Which control each key gets, and how to describe it. */
+const FIELDS: {
+	key: SettingKey;
+	label: string;
+	hint?: string;
+	type: 'text' | 'url' | 'textarea' | 'checkbox';
+}[] = [
+	{
+		key: 'global_cta_text',
+		label: 'Banner heading',
+		hint: 'Use | to force a line break.',
+		type: 'text',
+	},
+	{ key: 'btn_text', label: 'Button label', type: 'text' },
+	{ key: 'cta_url', label: 'Button destination', type: 'url' },
+	{
+		key: 'promo_image_url',
+		label: 'Promo banner image',
+		hint: 'Optional. Produce at 3:1 — 1080×360 works well. Other ratios are cropped, not letterboxed.',
+		type: 'url',
+	},
+	{
+		key: 'disable_global_cta',
+		label: 'Hide the banner entirely',
+		hint: 'Removes the whole block from every signature. A live campaign overrides this.',
+		type: 'checkbox',
+	},
+	{
+		key: 'promo_only_mode',
+		label: 'Show only the promo image',
+		hint: 'Hides the heading and button, leaving just the banner artwork.',
+		type: 'checkbox',
+	},
+	{ key: 'link_web', label: 'Website icon link', type: 'url' },
+	{ key: 'link_mail', label: 'Mail icon link', type: 'url' },
+	{ key: 'link_li', label: 'LinkedIn icon link', type: 'url' },
+	{
+		key: 'logo_url',
+		label: 'Logo override (light)',
+		hint: 'Leave blank to use the bundled pill. A replacement must have its own background baked in — see the README.',
+		type: 'url',
+	},
+	{
+		key: 'logo_url_dark',
+		label: 'Logo override (dark)',
+		hint: 'Leave blank to use the bundled pill.',
+		type: 'url',
+	},
+	{
+		key: 'disclaimer_text',
+		label: 'Disclaimer',
+		hint: 'Line breaks are preserved. Email addresses and web addresses are linked automatically.',
+		type: 'textarea',
+	},
+];
+
+let saved = false;
+let error = '';
+
+if (Astro.request.method === 'POST') {
+	try {
+		const form = await Astro.request.formData();
+
+		for (const field of FIELDS) {
+			// An unchecked checkbox submits nothing at all, so absence means '0'
+			// rather than "leave alone" — otherwise a box could never be unticked.
+			const value =
+				field.type === 'checkbox'
+					? form.get(field.key) === '1'
+						? '1'
+						: '0'
+					: String(form.get(field.key) ?? '').trim();
+
+			await setSetting(field.key, value);
+		}
+
+		saved = true;
+	} catch (err) {
+		error = err instanceof Error ? err.message : String(err);
+	}
+}
+
+let settings: Awaited<ReturnType<typeof getSettings>> | null = null;
+let loadError = '';
+
+try {
+	settings = await getSettings();
+} catch (err) {
+	loadError = err instanceof Error ? err.message : String(err);
+}
+---
+
+<AdminLayout
+	title="Settings"
+	lede="The defaults every signature falls back to. Per-user overrides and live campaigns take precedence over these."
+	section="settings"
+>
+	{
+		loadError ? (
+			<section class="panel panel--error">
+				<h2>Database unavailable</h2>
+				<pre class="error-detail">{loadError}</pre>
+			</section>
+		) : (
+			<form method="POST">
+				{saved && <p class="status status--ok">Saved. Changes reach inboxes within about five minutes.</p>}
+				{error && <p class="status status--error">Could not save: {error}</p>}
+
+				<fieldset class="group">
+					<legend>Banner</legend>
+					{
+						FIELDS.filter((f) =>
+							['global_cta_text', 'btn_text', 'cta_url', 'promo_image_url', 'disable_global_cta', 'promo_only_mode'].includes(f.key),
+						).map((field) =>
+							field.type === 'checkbox' ? (
+								<label class="check">
+									<input
+										type="checkbox"
+										name={field.key}
+										value="1"
+										checked={settings?.[field.key] === '1'}
+									/>
+									<span>
+										{field.label}
+										{field.hint && <span class="hint">{field.hint}</span>}
+									</span>
+								</label>
+							) : (
+								<div class="field">
+									<label for={field.key}>{field.label}</label>
+									<input
+										id={field.key}
+										name={field.key}
+										type={field.type}
+										value={settings?.[field.key] ?? ''}
+									/>
+									{field.hint && <span class="hint">{field.hint}</span>}
+								</div>
+							),
+						)
+					}
+				</fieldset>
+
+				<fieldset class="group">
+					<legend>Icon links</legend>
+					{
+						FIELDS.filter((f) => f.key.startsWith('link_')).map((field) => (
+							<div class="field">
+								<label for={field.key}>{field.label}</label>
+								<input id={field.key} name={field.key} type="url" value={settings?.[field.key] ?? ''} />
+							</div>
+						))
+					}
+				</fieldset>
+
+				<fieldset class="group">
+					<legend>Logo</legend>
+					{
+						FIELDS.filter((f) => f.key.startsWith('logo_')).map((field) => (
+							<div class="field">
+								<label for={field.key}>{field.label}</label>
+								<input id={field.key} name={field.key} type="url" value={settings?.[field.key] ?? ''} />
+								{field.hint && <span class="hint">{field.hint}</span>}
+							</div>
+						))
+					}
+				</fieldset>
+
+				<fieldset class="group">
+					<legend>Disclaimer</legend>
+					<div class="field">
+						<label for="disclaimer_text">Text</label>
+						<textarea id="disclaimer_text" name="disclaimer_text" rows="9">{settings?.disclaimer_text ?? ''}</textarea>
+						<span class="hint">
+							Line breaks are preserved. Email and web addresses are linked automatically in brand
+							colours, so mail clients do not style them themselves.
+						</span>
+					</div>
+				</fieldset>
+
+				<div class="form-actions">
+					<button type="submit" class="btn">Save settings</button>
+					<span class="footnote" style="margin:0">
+						Existing signatures pick these up automatically — nobody needs to regenerate.
+					</span>
+				</div>
+			</form>
+		)
+	}
+</AdminLayout>

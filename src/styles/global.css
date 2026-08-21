@@ -248,6 +248,221 @@ h3 {
 	margin-bottom: 0.4rem;
 }
 
+/* --- Admin chrome --------------------------------------------------------- */
+
+.admin-bar {
+	border-bottom: 1px solid var(--border-light);
+	background: var(--white);
+}
+
+.admin-bar__inner {
+	display: flex;
+	align-items: center;
+	gap: 1.5rem;
+	max-width: 1180px;
+	margin: 0 auto;
+	padding: 0 1.5rem;
+	min-height: 56px;
+	flex-wrap: wrap;
+}
+
+.admin-brand {
+	font-weight: 700;
+	font-size: 0.9375rem;
+	color: var(--ink);
+	text-decoration: none;
+}
+
+.admin-nav {
+	display: flex;
+	gap: 1.25rem;
+	flex-wrap: wrap;
+	flex: 1;
+}
+
+.admin-nav a {
+	font-weight: 500;
+	font-size: 0.875rem;
+	color: var(--ink);
+	text-decoration: none;
+	padding: 0.25rem 0;
+	border-bottom: 2px solid transparent;
+}
+
+.admin-nav a:hover {
+	color: var(--accent);
+}
+
+.admin-nav a.is-active {
+	font-weight: 600;
+	border-bottom-color: var(--accent);
+}
+
+.admin-bar__out {
+	margin: 0;
+}
+
+.btn--small {
+	height: 32px;
+	padding: 0 0.75rem;
+	font-size: 0.8125rem;
+}
+
+/* --- Tables --------------------------------------------------------------- */
+
+.table-wrap {
+	overflow-x: auto;
+	border: 1px solid var(--border-light);
+}
+
+table.data {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.875rem;
+}
+
+table.data th {
+	text-align: left;
+	font-weight: 600;
+	font-size: 0.75rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	padding: 0.75rem 1rem;
+	background: var(--surface);
+	border-bottom: 1px solid var(--border-light);
+	white-space: nowrap;
+}
+
+table.data td {
+	padding: 0.75rem 1rem;
+	border-bottom: 1px solid var(--border-light);
+	vertical-align: middle;
+}
+
+table.data tr:last-child td {
+	border-bottom: none;
+}
+
+table.data td.nowrap {
+	white-space: nowrap;
+}
+
+.muted {
+	font-weight: 300;
+	color: var(--ink);
+	opacity: 0.65;
+}
+
+.empty {
+	padding: 2.5rem 1.5rem;
+	text-align: center;
+	font-weight: 300;
+	color: var(--ink);
+	opacity: 0.7;
+}
+
+/* --- Badges --------------------------------------------------------------- */
+
+.badge {
+	display: inline-block;
+	font-weight: 500;
+	font-size: 0.75rem;
+	padding: 0.15rem 0.55rem;
+	border-radius: 20px;
+	border: 1px solid var(--border-light);
+	white-space: nowrap;
+}
+
+.badge--live {
+	background: var(--accent);
+	color: var(--white);
+	border-color: var(--accent);
+}
+
+.badge--scheduled {
+	background: var(--surface);
+}
+
+.badge--ended,
+.badge--off {
+	background: transparent;
+	opacity: 0.7;
+}
+
+/* --- Forms ---------------------------------------------------------------- */
+
+.field textarea,
+.field select {
+	width: 100%;
+	padding: 0.7rem 0.75rem;
+	font-family: var(--font);
+	font-size: 0.9375rem;
+	color: var(--ink);
+	background: var(--white);
+	border: 1px solid var(--border-light);
+	border-radius: 0;
+}
+
+.field textarea {
+	min-height: 8rem;
+	line-height: 1.5;
+	resize: vertical;
+}
+
+.field textarea:focus-visible,
+.field select:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
+	border-color: var(--accent);
+}
+
+.check {
+	display: flex;
+	gap: 0.6rem;
+	align-items: flex-start;
+	margin-bottom: 0.75rem;
+	font-size: 0.9375rem;
+}
+
+.check input {
+	margin-top: 0.2rem;
+	accent-color: var(--accent);
+	width: 1rem;
+	height: 1rem;
+	flex: none;
+}
+
+.check span {
+	font-weight: 400;
+}
+
+.check .hint {
+	display: block;
+	margin-top: 0.15rem;
+}
+
+fieldset.group {
+	border: 1px solid var(--border-light);
+	padding: 1.25rem;
+	margin: 0 0 1.5rem;
+}
+
+fieldset.group legend {
+	font-weight: 600;
+	font-size: 0.8125rem;
+	padding: 0 0.5rem;
+}
+
+.form-actions {
+	display: flex;
+	gap: 0.75rem;
+	align-items: center;
+	flex-wrap: wrap;
+	margin-top: 1.5rem;
+	padding-top: 1.5rem;
+	border-top: 1px solid var(--border-light);
+}
+
 /* --- Admin ---------------------------------------------------------------- */
 
 .page--narrow {
@@ -281,6 +496,17 @@ h3 {
 	padding: 1.25rem;
 	background: var(--surface);
 	border: 1px solid var(--border-light);
+}
+
+.stat--link {
+	text-decoration: none;
+	color: var(--ink);
+	transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.stat--link:hover {
+	border-color: var(--accent);
+	transform: translateY(-2px);
 }
 
 .stat-value {
