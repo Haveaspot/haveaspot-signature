@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { resolveCtaConfig } from '../../../lib/campaigns';
 import { getSettings } from '../../../lib/settings';
+import { getSignatureByEmail } from '../../../lib/db';
 import { logClick } from '../../../lib/tracking';
 import type { AssetType } from '../../../lib/tracking';
 
@@ -50,12 +51,17 @@ export const GET: APIRoute = async ({ params, url, request }) => {
 		} else if ((SIMPLE_ASSETS as readonly string[]).includes(asset)) {
 			const simple = asset as SimpleAsset;
 			assetType = simple;
-			target =
-				simple === 'linkedin'
-					? settings.link_li
-					: simple === 'mail'
-						? settings.link_mail
-						: settings.link_web;
+
+			if (simple === 'linkedin') {
+				// The person's own profile if they gave one, otherwise the company
+				// page. Resolved here rather than baked into the signature so that
+				// someone adding their profile later is reflected in signatures they
+				// pasted before — the same reason the banner is a live image.
+				const person = await getSignatureByEmail(email);
+				target = person?.linkedin_url || settings.link_li;
+			} else {
+				target = simple === 'mail' ? settings.link_mail : settings.link_web;
+			}
 		}
 
 		if (assetType && email) {

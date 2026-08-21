@@ -68,6 +68,22 @@ const allowedDomain = env('ALLOWED_EMAIL_DOMAIN') ?? 'haveaspot.com';
 							</div>
 						</div>
 
+						<div class="field">
+							<label for="linkedin_url">
+								LinkedIn profile <span class="hint" style="display:inline">(optional)</span>
+							</label>
+							<input
+								id="linkedin_url"
+								name="linkedin_url"
+								type="url"
+								inputmode="url"
+								placeholder="linkedin.com/in/your-name"
+							/>
+							<span class="hint">
+								Leave blank and the LinkedIn icon points at the Haveaspot company page.
+							</span>
+						</div>
+
 						<!--
 							Honeypot. Hidden from people, irresistible to bots; anything that
 							fills it in gets a silent no-op from /api/sync.

@@ -10,6 +10,36 @@ export const prerender = false;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/**
+ * Validate a LinkedIn profile URL, or return an error to show the person.
+ *
+ * Checked rather than accepted as-is because a wrong link here is expensive:
+ * it goes into a signature that gets pasted once and then sits in an outbox
+ * for months, and nobody proof-reads their own icon row.
+ */
+function cleanLinkedIn(raw: string): { url: string } | { error: string } {
+	if (!raw) return { url: '' };
+
+	const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+
+	let parsed: URL;
+	try {
+		parsed = new URL(withScheme);
+	} catch {
+		return { error: 'That LinkedIn link does not look like a web address.' };
+	}
+
+	const host = parsed.hostname.toLowerCase();
+	if (host !== 'linkedin.com' && !host.endsWith('.linkedin.com')) {
+		return { error: 'That is not a LinkedIn address. It should start linkedin.com/in/…' };
+	}
+
+	// Force https: a signature is read in mail clients that will warn on, or
+	// refuse, an insecure link.
+	parsed.protocol = 'https:';
+	return { url: parsed.toString() };
+}
+
 /** Trim and cap free-text input before it reaches the database or the markup. */
 function clean(value: unknown, maxLength = 120): string {
 	return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
@@ -63,6 +93,11 @@ export const POST: APIRoute = async ({ request, url }) => {
 		);
 	}
 
+	const linkedin = cleanLinkedIn(clean(payload.linkedin_url, 300));
+	if ('error' in linkedin) {
+		return Response.json({ ok: false, error: linkedin.error }, { status: 400 });
+	}
+
 	const fields = {
 		firstName: clean(payload.first_name, 60),
 		lastName: clean(payload.last_name, 60),
@@ -70,6 +105,7 @@ export const POST: APIRoute = async ({ request, url }) => {
 		email,
 		mobile: clean(payload.mobile, 40),
 		office: clean(payload.office, 40),
+		linkedinUrl: linkedin.url,
 	};
 
 	if (!fields.firstName || !fields.lastName) {
@@ -86,6 +122,7 @@ export const POST: APIRoute = async ({ request, url }) => {
 		job_title: fields.jobTitle,
 		mobile: fields.mobile,
 		office: fields.office,
+		linkedin_url: fields.linkedinUrl,
 	});
 
 	const [settings, config] = await Promise.all([

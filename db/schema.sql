@@ -45,6 +45,10 @@ CREATE TABLE IF NOT EXISTS signatures (
   mobile            text NOT NULL DEFAULT '',
   office            text NOT NULL DEFAULT '',
 
+  -- Their own LinkedIn profile. Blank means the icon points at the company
+  -- page, which is the setting the plugin only ever supported.
+  linkedin_url      text NOT NULL DEFAULT '',
+
   -- Per-user overrides (was sig_* postmeta)
   disable_cta       boolean NOT NULL DEFAULT false,
   disable_promo     boolean NOT NULL DEFAULT false,
@@ -183,3 +187,12 @@ CREATE INDEX IF NOT EXISTS sync_attempts_lookup_idx
 CREATE INDEX IF NOT EXISTS clicks_time_idx ON clicks (clicked_at DESC);
 CREATE INDEX IF NOT EXISTS clicks_sender_idx ON clicks (sender_email);
 CREATE INDEX IF NOT EXISTS clicks_campaign_idx ON clicks (campaign_id);
+
+-- -----------------------------------------------------------------------------
+-- Migrations
+--
+-- Additive and idempotent, so this file stays runnable end to end against both
+-- a fresh database and an existing one. Anything destructive would need doing
+-- by hand instead.
+-- -----------------------------------------------------------------------------
+ALTER TABLE signatures ADD COLUMN IF NOT EXISTS linkedin_url text NOT NULL DEFAULT '';

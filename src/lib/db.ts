@@ -82,6 +82,8 @@ export interface SignatureRow {
 	job_title: string;
 	mobile: string;
 	office: string;
+	/** Their own LinkedIn profile; blank falls back to the company page. */
+	linkedin_url: string;
 	disable_cta: boolean;
 	disable_promo: boolean;
 	promo_only_mode: boolean;
@@ -144,20 +146,24 @@ export async function upsertSignature(input: {
 	job_title: string;
 	mobile: string;
 	office: string;
+	linkedin_url: string;
 }): Promise<SignatureRow> {
 	const rows = await sql<SignatureRow[]>`
-		INSERT INTO signatures (email, first_name, last_name, job_title, mobile, office)
+		INSERT INTO signatures (
+			email, first_name, last_name, job_title, mobile, office, linkedin_url
+		)
 		VALUES (
 			${input.email.toLowerCase()}, ${input.first_name}, ${input.last_name},
-			${input.job_title}, ${input.mobile}, ${input.office}
+			${input.job_title}, ${input.mobile}, ${input.office}, ${input.linkedin_url}
 		)
 		ON CONFLICT (email) DO UPDATE SET
-			first_name = EXCLUDED.first_name,
-			last_name  = EXCLUDED.last_name,
-			job_title  = EXCLUDED.job_title,
-			mobile     = EXCLUDED.mobile,
-			office     = EXCLUDED.office,
-			updated_at = now()
+			first_name   = EXCLUDED.first_name,
+			last_name    = EXCLUDED.last_name,
+			job_title    = EXCLUDED.job_title,
+			mobile       = EXCLUDED.mobile,
+			office       = EXCLUDED.office,
+			linkedin_url = EXCLUDED.linkedin_url,
+			updated_at   = now()
 		RETURNING *
 	`;
 	return rows[0]!;

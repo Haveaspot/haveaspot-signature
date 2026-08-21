@@ -249,6 +249,20 @@ Dimensions are read from the file header on upload to warn about the 3:1 crop
 before someone finds out from a rendered signature. SVG is rejected — Satori
 cannot rasterise it.
 
+### Per-person LinkedIn
+
+The generator takes an optional LinkedIn profile. Blank falls back to the
+company page in `link_li`, which is all the WordPress original supported.
+
+Resolved in `/api/track/linkedin` at click time rather than baked into the
+signature markup, for the same reason the banner is a live image: someone who
+adds their profile months later gets it working in the signature they pasted on
+day one, without regenerating.
+
+The URL is validated as a LinkedIn address and forced to https. A wrong link
+here is expensive — it sits in an outbox for months and nobody proof-reads their
+own icon row.
+
 ### Previewing a staff member's signature
 
 The staff editor renders that person's complete signature, light and dark, as

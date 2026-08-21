@@ -157,6 +157,18 @@ const fullName = signature ? `${signature.first_name} ${signature.last_name}`.tr
 								<tr><th>Email</th><td>{signature?.email}</td></tr>
 								<tr><th>Mobile</th><td>{signature?.mobile || <span class="muted">not set</span>}</td></tr>
 								<tr><th>Office</th><td>{signature?.office || <span class="muted">not set</span>}</td></tr>
+								<tr>
+									<th>LinkedIn</th>
+									<td>
+										{signature?.linkedin_url ? (
+											<a href={signature.linkedin_url} target="_blank" rel="noopener noreferrer">
+												{signature.linkedin_url}
+											</a>
+										) : (
+											<span class="muted">not set — the icon points at the company page</span>
+										)}
+									</td>
+								</tr>
 								<tr><th>Clicks</th><td>{signature?.click_count}</td></tr>
 							</tbody>
 						</table>
