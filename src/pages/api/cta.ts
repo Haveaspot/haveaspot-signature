@@ -187,9 +187,9 @@ export async function drawCta(
 							style: {
 								fontSize: HEADING_SIZE,
 								lineHeight: `${HEADING_LINE}px`,
-								// Weight 400 — body copy. The heading is a sentence, not a
-								// display heading, and 800 here would shout.
-								fontWeight: 400,
+								// Weight 700 — the brand's card-title weight, which is what
+								// this is: the heading of the CTA card, not body copy.
+								fontWeight: 700,
 								color: textColour,
 							},
 						},
