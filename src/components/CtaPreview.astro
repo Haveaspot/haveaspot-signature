@@ -1,0 +1,98 @@
+---
+/**
+ * Live preview of the banner, light and dark, as it will appear in a signature.
+ *
+ * Exists because a campaign otherwise goes from a form straight into everyone's
+ * outgoing email, and the first sight of it rendered is in a real inbox. A
+ * wrapped heading or a cropped banner is cheap to fix here and expensive to fix
+ * after it has been sent.
+ *
+ * Reads the form fields by name and re-renders as they change, debounced so a
+ * held-down key does not fire a request per character.
+ */
+interface Props {
+	/** Field names to watch — must match the inputs on the surrounding form. */
+	heading?: string;
+	button?: string;
+	promo?: string;
+	promoOnly?: string;
+}
+
+const {
+	heading = 'cta_heading',
+	button = 'btn_text',
+	promo = 'promo_image_url',
+	promoOnly = 'promo_only_mode',
+} = Astro.props;
+---
+
+<section
+	class="cta-preview"
+	data-cta-preview
+	data-heading={heading}
+	data-button={button}
+	data-promo={promo}
+	data-promo-only={promoOnly}
+>
+	<h2>Preview</h2>
+	<p class="footnote" style="margin-top:0">
+		How the banner will look in a signature. Blank fields inherit the global settings, so
+		this is what recipients actually see.
+	</p>
+
+	<div class="cta-preview__panes">
+		<div class="cta-preview__pane">
+			<span class="cta-preview__label">Light</span>
+			<img alt="Banner preview, light mode" />
+		</div>
+		<div class="cta-preview__pane cta-preview__pane--dark">
+			<span class="cta-preview__label">Dark</span>
+			<img alt="Banner preview, dark mode" />
+		</div>
+	</div>
+</section>
+
+<script>
+	document.querySelectorAll<HTMLElement>('[data-cta-preview]').forEach((root) => {
+		// closest(), not a document-wide search: these pages carry several forms
+		// — the sign-out button in the admin bar is the first one in the document
+		// — and picking the wrong one silently previews an empty banner.
+		const form = root.closest<HTMLFormElement>('form');
+		if (!form) return;
+
+		const imgs = root.querySelectorAll<HTMLImageElement>('img');
+		const field = (name: string) =>
+			form.querySelector<HTMLInputElement>(`[name="${name}"]`);
+
+		const build = (theme: string) => {
+			const p = new URLSearchParams({ theme });
+			const heading = field(root.dataset.heading ?? '')?.value.trim();
+			const button = field(root.dataset.button ?? '')?.value.trim();
+			const promo = field(root.dataset.promo ?? '')?.value.trim();
+			const only = field(root.dataset.promoOnly ?? '');
+
+			if (heading) p.set('heading', heading);
+			if (button) p.set('button', button);
+			if (promo) p.set('promo', promo);
+			if (only?.checked) p.set('promoOnly', '1');
+
+			// Cache-bust so an edit is never served the previous render.
+			p.set('t', String(Date.now()));
+			return `/admin/preview-cta?${p}`;
+		};
+
+		const render = () => imgs.forEach((img, i) => (img.src = build(i === 0 ? 'light' : 'dark')));
+
+		// Debounced: each render rasterises an image server-side, so firing per
+		// keystroke would be wasteful and would flicker.
+		let timer: ReturnType<typeof setTimeout>;
+		const schedule = () => {
+			clearTimeout(timer);
+			timer = setTimeout(render, 500);
+		};
+
+		form.addEventListener('input', schedule);
+		form.addEventListener('change', schedule);
+		render();
+	});
+</script>

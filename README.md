@@ -249,9 +249,30 @@ Dimensions are read from the file header on upload to warn about the 3:1 crop
 before someone finds out from a rendered signature. SVG is rejected — Satori
 cannot rasterise it.
 
-## Still to build
+### Previewing a campaign
 
-- Rate limiting on `/api/sync`.
+The campaign editor and the settings page both render the banner live, light
+and dark, as you type. `/admin/preview-cta` draws it from the current form
+values with unset fields falling back to the saved settings, so what is shown is
+what recipients get rather than a blank-field approximation.
+
+It exists because a campaign otherwise goes from a form straight into everyone's
+outgoing email, and a wrapped heading or a cropped banner is cheap to fix before
+sending and expensive after.
+
+### Throttling
+
+`/api/sync` is public and writes to the CRM, so it is capped at 40 requests per
+address per hour. Deliberately generous: on rollout day an entire office may
+generate signatures from behind one NAT address, and blocking that would be a
+worse failure than the abuse this guards against. It exists to stop a script
+doing thousands.
+
+Both throttle tables are pruned by the daily cron, which until then only
+reported and did nothing — they look back an hour and a day respectively, so
+without a prune they would grow forever.
+
+## Still to build
 - Promo images assume a 3:1 aspect ratio; the upload UI should enforce it, or
   the renderer should read real dimensions.
 - The heading height estimate in `src/lib/og.ts` is arithmetic, not real text

@@ -157,6 +157,29 @@ CREATE INDEX IF NOT EXISTS admin_login_attempts_lookup_idx
   ON admin_login_attempts (ip_hash, attempted_at DESC)
   WHERE succeeded = false;
 
+-- -----------------------------------------------------------------------------
+-- Generator throttling
+--
+-- /api/sync is public and writes to the CRM. The honeypot and the domain guard
+-- stop casual abuse, but neither limits volume, so a script that knows the
+-- domain could fill the staff table with junk records.
+--
+-- Counted per address, as a salted hash — the raw IP is never stored, matching
+-- how clicks are recorded.
+--
+-- The limit has to survive a whole office generating signatures on rollout day
+-- from behind one NAT address, so it is deliberately generous: this exists to
+-- stop automated abuse, not to ration ordinary use.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sync_attempts (
+  id            bigserial PRIMARY KEY,
+  attempted_at  timestamptz NOT NULL DEFAULT now(),
+  ip_hash       text NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS sync_attempts_lookup_idx
+  ON sync_attempts (ip_hash, attempted_at DESC);
+
 CREATE INDEX IF NOT EXISTS clicks_time_idx ON clicks (clicked_at DESC);
 CREATE INDEX IF NOT EXISTS clicks_sender_idx ON clicks (sender_email);
 CREATE INDEX IF NOT EXISTS clicks_campaign_idx ON clicks (campaign_id);

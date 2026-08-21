@@ -1,6 +1,7 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import BannerField from '../../../components/BannerField.astro';
+import CtaPreview from '../../../components/CtaPreview.astro';
 import { listMedia, isConfigured } from '../../../lib/media';
 import {
 	getCampaign,
@@ -271,6 +272,8 @@ const status = campaign ? campaignStatus(campaign) : null;
 							<input type="checkbox" name="promo_only_mode" value="1" checked={campaign?.promo_only_mode} />
 							<span>Show only the promo image, no heading or button</span>
 						</label>
+
+						<CtaPreview />
 					</fieldset>
 
 					<div class="form-actions">

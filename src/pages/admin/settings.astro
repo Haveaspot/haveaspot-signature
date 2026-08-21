@@ -3,6 +3,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getSettings, setSetting, SETTING_DEFAULTS } from '../../lib/settings';
 import type { SettingKey } from '../../lib/settings';
 import BannerField from '../../components/BannerField.astro';
+import CtaPreview from '../../components/CtaPreview.astro';
 import { listMedia, isConfigured } from '../../lib/media';
 
 export const prerender = false;
@@ -179,6 +180,8 @@ try {
 						media={media}
 						configured={mediaConfigured}
 					/>
+
+					<CtaPreview heading="global_cta_text" button="btn_text" />
 				</fieldset>
 
 				<fieldset class="group">

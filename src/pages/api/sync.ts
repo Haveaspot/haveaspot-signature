@@ -4,6 +4,7 @@ import { resolveCtaConfig } from '../../lib/campaigns';
 import { getSettings } from '../../lib/settings';
 import { renderSignature } from '../../lib/signature-html';
 import { env } from '../../lib/env';
+import { isSyncThrottled, THROTTLE_MESSAGE } from '../../lib/throttle';
 
 export const prerender = false;
 
@@ -35,6 +36,13 @@ export const POST: APIRoute = async ({ request, url }) => {
 	// a bot. Returns 200 so the bot cannot distinguish rejection from success.
 	if (clean(payload.middle_name)) {
 		return Response.json({ ok: true, html: '' });
+	}
+
+	// Volume limit. Checked after the honeypot so obvious bots do not consume a
+	// legitimate network's allowance, and before any database write so a flood
+	// cannot create records.
+	if (await isSyncThrottled(request.headers)) {
+		return Response.json({ ok: false, error: THROTTLE_MESSAGE }, { status: 429 });
 	}
 
 	const email = clean(payload.email, 160).toLowerCase();

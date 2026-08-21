@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { sql } from '../../../lib/db';
 import { env } from '../../../lib/env';
+import { pruneSyncAttempts, pruneLoginAttempts } from '../../../lib/throttle';
 
 export const prerender = false;
 
@@ -39,10 +40,18 @@ export const GET: APIRoute = async ({ request }) => {
 		  AND ends_at < now()
 	`;
 
+	// Housekeeping the throttles need but cannot do themselves: both tables only
+	// ever look back an hour or a day, so without a prune they grow forever.
+	const [prunedSync, prunedLogins] = await Promise.all([
+		pruneSyncAttempts(),
+		pruneLoginAttempts(),
+	]);
+
 	return Response.json({
 		ok: true,
 		checkedAt: new Date().toISOString(),
 		expiredCount: expired.length,
 		expired: expired.map((c) => c.name),
+		pruned: { syncAttempts: prunedSync, loginAttempts: prunedLogins },
 	});
 };
