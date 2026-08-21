@@ -642,6 +642,72 @@ fieldset.group legend {
 	min-width: 2px;
 }
 
+/* --- Full signature preview ----------------------------------------------- */
+
+.sig-preview {
+	margin-bottom: 2rem;
+	padding: 1.5rem;
+	border: 1px solid var(--border-light);
+	border-radius: var(--radius-card);
+}
+
+.sig-preview__head {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	flex-wrap: wrap;
+}
+
+.sig-preview__head h2 {
+	font-size: 1rem;
+	font-weight: 700;
+	margin: 0;
+}
+
+.sig-preview__panes {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+	gap: 1rem;
+	margin-top: 1rem;
+}
+
+.sig-preview__pane {
+	padding: 1rem;
+	background: var(--white);
+	border: 1px solid var(--border-light);
+	border-radius: var(--radius-card);
+	overflow-x: auto;
+}
+
+.sig-preview__pane--dark {
+	background: #111111;
+	border-color: #373737;
+}
+
+.sig-preview__label {
+	display: block;
+	font-weight: 500;
+	font-size: 0.6875rem;
+	letter-spacing: 0.09em;
+	text-transform: uppercase;
+	margin-bottom: 0.75rem;
+	opacity: 0.65;
+}
+
+.sig-preview__pane--dark .sig-preview__label {
+	color: #ffffff;
+}
+
+/*
+ * Inert on purpose. The signature is real markup with real tracking links, and
+ * following one from an admin page would log a click against that person and
+ * skew their analytics. Selection is left enabled so the text can still be read
+ * and copied.
+ */
+.sig-preview__stage {
+	pointer-events: none;
+}
+
 /* --- Banner preview ------------------------------------------------------- */
 
 .cta-preview {

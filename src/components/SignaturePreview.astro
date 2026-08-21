@@ -1,0 +1,80 @@
+---
+import { renderSignature, darkRulesCss } from '../lib/signature-html';
+import type { SignatureFields } from '../lib/signature-html';
+import type { CtaConfig } from '../lib/campaigns';
+import type { Settings } from '../lib/settings';
+
+interface Props {
+	fields: SignatureFields;
+	config: CtaConfig;
+	settings: Settings;
+	baseUrl: string;
+}
+
+const { fields, config, settings, baseUrl } = Astro.props;
+
+/**
+ * The whole signature exactly as this person's recipients see it right now.
+ *
+ * Built from `resolveCtaConfig`, not from the raw record, so it reflects the
+ * resolved precedence chain — their own overrides on top of the global
+ * settings, and a live campaign on top of both. Rendering the record directly
+ * would show what is stored rather than what is sent, which is the thing worth
+ * checking.
+ *
+ * The banner comes from `/api/cta` as usual, so what appears here is the same
+ * artwork the mail client fetches rather than a reproduction of it.
+ */
+const html = renderSignature({ fields, config, settings, baseUrl });
+
+/**
+ * Which layer is actually winning, stated plainly. The chain is easy to reason
+ * about wrongly — someone can set a personal override and be puzzled that a
+ * campaign is overriding it — so the answer is given rather than implied.
+ */
+const source = config.disableCta
+	? { label: 'No banner', detail: 'The banner is switched off for this person.' }
+	: config.campaign
+		? {
+				label: `Campaign: ${config.campaign.name}`,
+				detail: 'A live campaign is overriding both their own settings and the global default.',
+			}
+		: config.signature &&
+			  (config.signature.cta_heading || config.signature.btn_text || config.signature.cta_link)
+			? {
+					label: 'Their own override',
+					detail: 'Set on this page, taking precedence over the global default.',
+				}
+			: { label: 'Global default', detail: 'No override and no live campaign, so the settings apply.' };
+---
+
+<section class="sig-preview">
+	<div class="sig-preview__head">
+		<h2>How their signature looks now</h2>
+		<span class="badge">{source.label}</span>
+	</div>
+	<p class="footnote" style="margin-top:0">{source.detail}</p>
+
+	<div class="sig-preview__panes">
+		<div class="sig-preview__pane">
+			<span class="sig-preview__label">Light</span>
+			<div class="sig-preview__stage" set:html={html} />
+		</div>
+		<div class="sig-preview__pane sig-preview__pane--dark force-dark">
+			<span class="sig-preview__label">Dark</span>
+			<div class="sig-preview__stage" set:html={html} />
+		</div>
+	</div>
+
+	<p class="footnote">
+		Links are disabled here — following one would log a click against this person and skew
+		their analytics.
+	</p>
+</section>
+
+<style is:global set:html={`
+	/* The signature's own dark rules, forced on so the dark pane can be seen
+	   without changing the operating system's appearance setting. Re-emitted from
+	   the same source the signature uses, so this cannot drift from it. */
+	${darkRulesCss('.force-dark ')}
+`}></style>

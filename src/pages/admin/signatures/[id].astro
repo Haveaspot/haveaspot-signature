@@ -1,6 +1,10 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import BannerField from '../../../components/BannerField.astro';
+import SignaturePreview from '../../../components/SignaturePreview.astro';
+import { resolveCtaConfig } from '../../../lib/campaigns';
+import { getSettings } from '../../../lib/settings';
+import { env } from '../../../lib/env';
 import { listMedia, isConfigured } from '../../../lib/media';
 import {
 	getSignature,
@@ -74,6 +78,29 @@ try {
 
 if (!loadError && !signature) return Astro.redirect('/admin/signatures', 302);
 
+/**
+ * Resolved after the POST above, so the preview shows the state just saved
+ * rather than the state the page loaded with.
+ *
+ * Best-effort: a preview is worth having but not worth failing the whole page
+ * for, so a problem here leaves it out rather than showing an error.
+ */
+let previewConfig: Awaited<ReturnType<typeof resolveCtaConfig>> | null = null;
+let previewSettings: Awaited<ReturnType<typeof getSettings>> | null = null;
+
+if (signature) {
+	try {
+		[previewConfig, previewSettings] = await Promise.all([
+			resolveCtaConfig(signature.email),
+			getSettings(),
+		]);
+	} catch {
+		previewConfig = null;
+	}
+}
+
+const previewBase = (env('PUBLIC_SITE_URL') ?? Astro.url.origin).replace(/\/$/, '');
+
 const assigned = new Set(
 	departments.filter((d) => signature?.department_names.includes(d.name)).map((d) => d.id),
 );
@@ -98,6 +125,22 @@ const fullName = signature ? `${signature.first_name} ${signature.last_name}`.tr
 			<>
 				{notice && <p class="status status--ok">{notice}</p>}
 				{error && <p class="status status--error">{error}</p>}
+
+				{previewConfig && previewSettings && signature && (
+					<SignaturePreview
+						fields={{
+							firstName: signature.first_name,
+							lastName: signature.last_name,
+							jobTitle: signature.job_title,
+							email: signature.email,
+							mobile: signature.mobile,
+							office: signature.office,
+						}}
+						config={previewConfig}
+						settings={previewSettings}
+						baseUrl={previewBase}
+					/>
+				)}
 
 				<form method="POST">
 					<fieldset class="group">

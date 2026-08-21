@@ -249,6 +249,21 @@ Dimensions are read from the file header on upload to warn about the 3:1 crop
 before someone finds out from a rendered signature. SVG is rejected — Satori
 cannot rasterise it.
 
+### Previewing a staff member's signature
+
+The staff editor renders that person's complete signature, light and dark, as
+their recipients see it right now — built from `resolveCtaConfig`, not from the
+stored record, so it reflects the resolved chain rather than what is saved.
+
+A badge names which layer is actually winning: the global default, their own
+override, or a live campaign. That answers the question the chain makes easy to
+get wrong — someone sets a personal override, sees it saved, and is puzzled that
+a campaign is overriding it.
+
+Links in the preview are inert. The markup is real, tracking links included, and
+following one from an admin page would log a click against that person and skew
+their own analytics.
+
 ### Previewing a campaign
 
 The campaign editor and the settings page both render the banner live, light
