@@ -453,6 +453,39 @@ fieldset.group legend {
 	padding: 0 0.5rem;
 }
 
+.inline-form {
+	display: flex;
+	gap: 0.6rem;
+	align-items: center;
+	margin: 0;
+}
+
+/* Visually hidden but still announced — labels for inputs that read fine from
+   surrounding context but must not be label-less for a screen reader. */
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+	border: 0;
+}
+
+.btn--danger {
+	color: #b42318;
+	background: transparent;
+	border-color: #f9a8a2;
+}
+
+.btn--danger:hover {
+	color: var(--white);
+	background: #b42318;
+	border-color: #b42318;
+}
+
 .form-actions {
 	display: flex;
 	gap: 0.75rem;

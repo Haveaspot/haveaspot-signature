@@ -1,0 +1,152 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import {
+	listDepartments,
+	createDepartment,
+	renameDepartment,
+	deleteDepartment,
+} from '../../lib/admin-db';
+
+export const prerender = false;
+
+/**
+ * Departments — used to target campaigns at groups rather than individuals.
+ *
+ * Deliberately thin: a name, and how many staff are in it. The slug is derived
+ * from the name rather than typed, so there is one less field to get wrong.
+ */
+
+let notice = '';
+let error = '';
+
+if (Astro.request.method === 'POST') {
+	try {
+		const form = await Astro.request.formData();
+		const action = String(form.get('action') ?? '');
+		const name = String(form.get('name') ?? '').trim().slice(0, 60);
+		const id = Number(form.get('id'));
+
+		if (action === 'create') {
+			if (!name) throw new Error('Give the department a name.');
+			await createDepartment(name);
+			notice = `Added "${name}".`;
+		} else if (action === 'rename' && Number.isFinite(id)) {
+			if (!name) throw new Error('Give the department a name.');
+			await renameDepartment(id, name);
+			notice = `Renamed to "${name}".`;
+		} else if (action === 'delete' && Number.isFinite(id)) {
+			await deleteDepartment(id);
+			notice = 'Department deleted.';
+		}
+	} catch (err) {
+		error = err instanceof Error ? err.message : String(err);
+	}
+}
+
+let departments: Awaited<ReturnType<typeof listDepartments>> = [];
+let loadError = '';
+
+try {
+	departments = await listDepartments();
+} catch (err) {
+	loadError = err instanceof Error ? err.message : String(err);
+}
+---
+
+<AdminLayout
+	title="Departments"
+	lede="Groups you can aim a campaign at, rather than picking people one by one."
+	section="departments"
+>
+	{
+		loadError ? (
+			<section class="panel panel--error">
+				<h2>Database unavailable</h2>
+				<pre class="error-detail">{loadError}</pre>
+			</section>
+		) : (
+			<>
+				{notice && <p class="status status--ok">{notice}</p>}
+				{error && <p class="status status--error">{error}</p>}
+
+				<section class="panel" style="margin-bottom:2rem">
+					<h2>Add a department</h2>
+					<form method="POST" class="inline-form">
+						<input type="hidden" name="action" value="create" />
+						<div class="field" style="margin:0; flex:1">
+							<label for="new-name" class="sr-only">Department name</label>
+							<input id="new-name" name="name" type="text" placeholder="e.g. Sales" required />
+						</div>
+						<button type="submit" class="btn">Add</button>
+					</form>
+				</section>
+
+				{departments.length === 0 ? (
+					<div class="table-wrap">
+						<p class="empty">
+							No departments yet. Add one above, then assign staff to it from the Staff page.
+						</p>
+					</div>
+				) : (
+					<div class="table-wrap">
+						<table class="data">
+							<thead>
+								<tr>
+									<th>Name</th>
+									<th>Staff</th>
+									<th aria-label="Actions" />
+								</tr>
+							</thead>
+							<tbody>
+								{
+									departments.map((d) => (
+										<tr>
+											<td>
+												<form method="POST" class="inline-form">
+													<input type="hidden" name="action" value="rename" />
+													<input type="hidden" name="id" value={d.id} />
+													<div class="field" style="margin:0; flex:1">
+														<label for={`n${d.id}`} class="sr-only">
+															Name
+														</label>
+														<input id={`n${d.id}`} name="name" type="text" value={d.name} required />
+													</div>
+													<button type="submit" class="btn btn--secondary btn--small">
+														Rename
+													</button>
+												</form>
+											</td>
+											<td class="nowrap">
+												{d.member_count === 0 ? (
+													<span class="muted">none</span>
+												) : (
+													`${d.member_count} ${d.member_count === 1 ? 'person' : 'people'}`
+												)}
+											</td>
+											<td class="nowrap">
+												<form
+													method="POST"
+													onsubmit={`return confirm('Delete "${d.name}"? ${
+														d.member_count
+															? `${d.member_count} staff will be unassigned, and `
+															: ''
+													}any campaign targeting only this department will stop matching anyone.')`}
+												>
+													<input type="hidden" name="action" value="delete" />
+													<input type="hidden" name="id" value={d.id} />
+													<button type="submit" class="btn btn--danger btn--small">
+														Delete
+													</button>
+												</form>
+											</td>
+										</tr>
+									))
+								}
+							</tbody>
+						</table>
+					</div>
+				)}
+			</>
+		)
+	}
+</AdminLayout>
