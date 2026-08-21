@@ -1,0 +1,198 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import {
+	getSignature,
+	listDepartments,
+	updateSignatureOverrides,
+	setSignatureDepartments,
+	deleteSignature,
+} from '../../../lib/admin-db';
+
+export const prerender = false;
+
+const id = Number(Astro.params.id);
+if (!Number.isFinite(id)) return Astro.redirect('/admin/signatures', 302);
+
+let notice = '';
+let error = '';
+
+if (Astro.request.method === 'POST') {
+	try {
+		const form = await Astro.request.formData();
+
+		if (String(form.get('action')) === 'delete') {
+			await deleteSignature(id);
+			return Astro.redirect('/admin/signatures?deleted=1', 302);
+		}
+
+		await updateSignatureOverrides(id, {
+			// Absent means off: an unticked checkbox submits nothing at all, so
+			// reading presence is the only way a box can ever be unticked again.
+			disable_cta: form.get('disable_cta') === '1',
+			disable_promo: form.get('disable_promo') === '1',
+			promo_only_mode: form.get('promo_only_mode') === '1',
+			cta_heading: String(form.get('cta_heading') ?? '').trim().slice(0, 200),
+			cta_link: String(form.get('cta_link') ?? '').trim().slice(0, 400),
+			btn_text: String(form.get('btn_text') ?? '').trim().slice(0, 60),
+			promo_image_url: String(form.get('promo_image_url') ?? '').trim().slice(0, 400),
+		});
+
+		await setSignatureDepartments(
+			id,
+			form.getAll('departments').map(Number).filter(Number.isFinite),
+		);
+
+		notice = 'Saved.';
+	} catch (err) {
+		error = err instanceof Error ? err.message : String(err);
+	}
+}
+
+let signature: Awaited<ReturnType<typeof getSignature>> = null;
+let departments: Awaited<ReturnType<typeof listDepartments>> = [];
+let loadError = '';
+
+try {
+	[signature, departments] = await Promise.all([getSignature(id), listDepartments()]);
+} catch (err) {
+	loadError = err instanceof Error ? err.message : String(err);
+}
+
+if (!loadError && !signature) return Astro.redirect('/admin/signatures', 302);
+
+const assigned = new Set(
+	departments.filter((d) => signature?.department_names.includes(d.name)).map((d) => d.id),
+);
+
+const fullName = signature ? `${signature.first_name} ${signature.last_name}`.trim() : '';
+---
+
+<AdminLayout
+	title={fullName || 'Staff member'}
+	lede={signature?.email}
+	section="signatures"
+>
+	<a slot="actions" class="btn btn--secondary btn--small" href="/admin/signatures">← All staff</a>
+
+	{
+		loadError ? (
+			<section class="panel panel--error">
+				<h2>Database unavailable</h2>
+				<pre class="error-detail">{loadError}</pre>
+			</section>
+		) : (
+			<>
+				{notice && <p class="status status--ok">{notice}</p>}
+				{error && <p class="status status--error">{error}</p>}
+
+				<form method="POST">
+					<fieldset class="group">
+						<legend>Their details</legend>
+						<p class="footnote" style="margin-top:0">
+							Name, job title, email and phone numbers are not editable here. They belong to
+							the person and are refreshed every time they re-run the generator, so an edit
+							made here would be silently overwritten. Ask them to regenerate instead.
+						</p>
+						<table class="data" style="margin-top:1rem">
+							<tbody>
+								<tr><th>Name</th><td>{fullName || '—'}</td></tr>
+								<tr><th>Job title</th><td>{signature?.job_title || <span class="muted">not set</span>}</td></tr>
+								<tr><th>Email</th><td>{signature?.email}</td></tr>
+								<tr><th>Mobile</th><td>{signature?.mobile || <span class="muted">not set</span>}</td></tr>
+								<tr><th>Office</th><td>{signature?.office || <span class="muted">not set</span>}</td></tr>
+								<tr><th>Clicks</th><td>{signature?.click_count}</td></tr>
+							</tbody>
+						</table>
+					</fieldset>
+
+					<fieldset class="group">
+						<legend>Departments</legend>
+						{departments.length === 0 ? (
+							<p class="footnote" style="margin-top:0">
+								No departments exist yet. <a href="/admin/departments">Create one</a> to be able
+								to target campaigns at groups.
+							</p>
+						) : (
+							departments.map((d) => (
+								<label class="check">
+									<input
+										type="checkbox"
+										name="departments"
+										value={d.id}
+										checked={assigned.has(d.id)}
+									/>
+									<span>{d.name}</span>
+								</label>
+							))
+						)}
+					</fieldset>
+
+					<fieldset class="group">
+						<legend>Overrides for this person</legend>
+						<p class="footnote" style="margin-top:0">
+							Leave blank to use the global settings. A live campaign overrides both.
+						</p>
+
+						<label class="check">
+							<input type="checkbox" name="disable_cta" value="1" checked={signature?.disable_cta} />
+							<span>
+								Hide the banner for this person
+								<span class="hint">A live campaign will still show — campaigns override this.</span>
+							</span>
+						</label>
+
+						<label class="check">
+							<input type="checkbox" name="promo_only_mode" value="1" checked={signature?.promo_only_mode} />
+							<span>Show only the promo image, no heading or button</span>
+						</label>
+
+						<label class="check">
+							<input type="checkbox" name="disable_promo" value="1" checked={signature?.disable_promo} />
+							<span>Never show a promo image for this person</span>
+						</label>
+
+						<div class="field">
+							<label for="cta_heading">Banner heading</label>
+							<input id="cta_heading" name="cta_heading" type="text" value={signature?.cta_heading} />
+							<span class="hint">Use | to force a line break.</span>
+						</div>
+
+						<div class="field">
+							<label for="btn_text">Button label</label>
+							<input id="btn_text" name="btn_text" type="text" value={signature?.btn_text} />
+						</div>
+
+						<div class="field">
+							<label for="cta_link">Button destination</label>
+							<input id="cta_link" name="cta_link" type="url" value={signature?.cta_link} />
+						</div>
+
+						<div class="field">
+							<label for="promo_image_url">Promo banner image</label>
+							<input id="promo_image_url" name="promo_image_url" type="url" value={signature?.promo_image_url} />
+							<span class="hint">3:1 — 1080×360 works well. Other ratios are cropped.</span>
+						</div>
+					</fieldset>
+
+					<div class="form-actions">
+						<button type="submit" class="btn">Save</button>
+						<a class="btn btn--secondary" href="/admin/signatures">Cancel</a>
+					</div>
+				</form>
+
+				<form
+					method="POST"
+					style="margin-top:2.5rem"
+					onsubmit={`return confirm('Delete ${fullName}? Their click history is kept but no longer attributed, and their pasted signature will fall back to the global settings.')`}
+				>
+					<input type="hidden" name="action" value="delete" />
+					<button type="submit" class="btn btn--danger btn--small">Delete this staff record</button>
+					<span class="footnote" style="display:block; margin-top:.5rem">
+						Their signature keeps working — it falls back to the global settings, and the
+						record reappears if they use the generator again.
+					</span>
+				</form>
+			</>
+		)
+	}
+</AdminLayout>

@@ -171,15 +171,32 @@ export async function deleteSignature(id: number): Promise<void> {
 // Campaigns
 // -----------------------------------------------------------------------------
 
+/**
+ * Campaign times are entered and shown in UK local time, stored as timestamptz.
+ *
+ * The conversion is done in SQL with `AT TIME ZONE 'Europe/London'` rather than
+ * in JavaScript, because that applies the correct offset for the date in
+ * question — a campaign scheduled in January is GMT and one in July is BST, and
+ * a fixed offset would put one of them an hour out. Getting this wrong would
+ * silently start or end campaigns at the wrong time, which is precisely the
+ * thing the scheduling exists to control.
+ */
+export const CAMPAIGN_TZ = 'Europe/London';
+
 export interface CampaignListRow extends CampaignRow {
 	target_department_ids: number[];
 	target_signature_ids: number[];
 	click_count: number;
+	/** `YYYY-MM-DDTHH:MM` in UK local time, for a datetime-local input. */
+	starts_local: string | null;
+	ends_local: string | null;
 }
 
 export async function listCampaigns(): Promise<CampaignListRow[]> {
 	return sql<CampaignListRow[]>`
 		SELECT c.*,
+		       to_char(c.starts_at AT TIME ZONE ${CAMPAIGN_TZ}, 'YYYY-MM-DD"T"HH24:MI') AS starts_local,
+		       to_char(c.ends_at   AT TIME ZONE ${CAMPAIGN_TZ}, 'YYYY-MM-DD"T"HH24:MI') AS ends_local,
 		       COALESCE(array_agg(DISTINCT t.department_id)
 		                FILTER (WHERE t.department_id IS NOT NULL), '{}') AS target_department_ids,
 		       COALESCE(array_agg(DISTINCT t.signature_id)
@@ -195,6 +212,8 @@ export async function listCampaigns(): Promise<CampaignListRow[]> {
 export async function getCampaign(id: number): Promise<CampaignListRow | null> {
 	const rows = await sql<CampaignListRow[]>`
 		SELECT c.*,
+		       to_char(c.starts_at AT TIME ZONE ${CAMPAIGN_TZ}, 'YYYY-MM-DD"T"HH24:MI') AS starts_local,
+		       to_char(c.ends_at   AT TIME ZONE ${CAMPAIGN_TZ}, 'YYYY-MM-DD"T"HH24:MI') AS ends_local,
 		       COALESCE(array_agg(DISTINCT t.department_id)
 		                FILTER (WHERE t.department_id IS NOT NULL), '{}') AS target_department_ids,
 		       COALESCE(array_agg(DISTINCT t.signature_id)
@@ -210,6 +229,7 @@ export async function getCampaign(id: number): Promise<CampaignListRow | null> {
 
 export interface CampaignInput {
 	name: string;
+	/** Naive `YYYY-MM-DDTHH:MM` in UK local time, converted on write. */
 	starts_at: string | null;
 	ends_at: string | null;
 	is_deactivated: boolean;
@@ -235,7 +255,10 @@ export async function saveCampaign(id: number | null, input: CampaignInput): Pro
 					cta_heading, cta_link, btn_text, promo_image_url,
 					promo_only_mode, target_all
 				) VALUES (
-					${input.name}, ${input.starts_at}, ${input.ends_at}, ${input.is_deactivated},
+					${input.name},
+					${input.starts_at}::timestamp AT TIME ZONE ${CAMPAIGN_TZ},
+					${input.ends_at}::timestamp AT TIME ZONE ${CAMPAIGN_TZ},
+					${input.is_deactivated},
 					${input.cta_heading}, ${input.cta_link}, ${input.btn_text}, ${input.promo_image_url},
 					${input.promo_only_mode}, ${input.target_all}
 				) RETURNING id
@@ -245,8 +268,8 @@ export async function saveCampaign(id: number | null, input: CampaignInput): Pro
 			await tx`
 				UPDATE campaigns SET
 					name = ${input.name},
-					starts_at = ${input.starts_at},
-					ends_at = ${input.ends_at},
+					starts_at = ${input.starts_at}::timestamp AT TIME ZONE ${CAMPAIGN_TZ},
+					ends_at = ${input.ends_at}::timestamp AT TIME ZONE ${CAMPAIGN_TZ},
 					is_deactivated = ${input.is_deactivated},
 					cta_heading = ${input.cta_heading},
 					cta_link = ${input.cta_link},

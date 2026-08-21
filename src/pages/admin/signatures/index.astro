@@ -1,0 +1,112 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { listSignatures } from '../../../lib/admin-db';
+
+export const prerender = false;
+
+/**
+ * Staff list.
+ *
+ * There is no "add" button on purpose: records are created by people using the
+ * generator, so anything added here by hand would be a duplicate waiting to
+ * happen — the generator upserts on email.
+ */
+
+let signatures: Awaited<ReturnType<typeof listSignatures>> = [];
+let loadError = '';
+
+try {
+	signatures = await listSignatures();
+} catch (err) {
+	loadError = err instanceof Error ? err.message : String(err);
+}
+
+/** Any per-person override in play, so the list shows who differs from default. */
+function overrides(s: (typeof signatures)[number]): string[] {
+	const out: string[] = [];
+	if (s.disable_cta) out.push('banner off');
+	if (s.promo_only_mode) out.push('promo only');
+	if (s.disable_promo) out.push('no promo');
+	if (s.cta_heading) out.push('own heading');
+	if (s.btn_text) out.push('own button');
+	if (s.cta_link) out.push('own link');
+	return out;
+}
+
+const dateFmt = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' });
+---
+
+<AdminLayout
+	title="Staff"
+	lede="Everyone who has generated a signature. Records appear here on their own — there is nothing to add by hand."
+	section="signatures"
+>
+	{
+		loadError ? (
+			<section class="panel panel--error">
+				<h2>Database unavailable</h2>
+				<pre class="error-detail">{loadError}</pre>
+			</section>
+		) : signatures.length === 0 ? (
+			<div class="table-wrap">
+				<p class="empty">
+					Nobody has generated a signature yet. Send colleagues the
+					<a href="/"> generator link</a> and they will appear here.
+				</p>
+			</div>
+		) : (
+			<div class="table-wrap">
+				<table class="data">
+					<thead>
+						<tr>
+							<th>Name</th>
+							<th>Email</th>
+							<th>Departments</th>
+							<th>Overrides</th>
+							<th>Clicks</th>
+							<th>Updated</th>
+							<th aria-label="Actions" />
+						</tr>
+					</thead>
+					<tbody>
+						{
+							signatures.map((s) => {
+								const ov = overrides(s);
+								return (
+									<tr>
+										<td>
+											<strong>{`${s.first_name} ${s.last_name}`.trim() || '—'}</strong>
+											{s.job_title && <div class="muted">{s.job_title}</div>}
+										</td>
+										<td class="nowrap">{s.email}</td>
+										<td>
+											{s.department_names.length ? (
+												s.department_names.join(', ')
+											) : (
+												<span class="muted">none</span>
+											)}
+										</td>
+										<td>
+											{ov.length ? (
+												ov.map((o) => <span class="badge">{o}</span>)
+											) : (
+												<span class="muted">default</span>
+											)}
+										</td>
+										<td class="nowrap">{s.click_count}</td>
+										<td class="nowrap muted">{dateFmt.format(new Date(s.updated_at))}</td>
+										<td class="nowrap">
+											<a class="btn btn--secondary btn--small" href={`/admin/signatures/${s.id}`}>
+												Edit
+											</a>
+										</td>
+									</tr>
+								);
+							})
+						}
+					</tbody>
+				</table>
+			</div>
+		)
+	}
+</AdminLayout>
