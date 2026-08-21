@@ -69,15 +69,30 @@ comment does not survive rasterisation, so satisfy it somewhere visible (an
 About/credits page on one of the sites is the usual approach).
 
 Logo: built from the brand masters in `HAS-Brand/public/downloads/` into
-`public/logo/` at 260px wide (displayed at 130px). Two variants ship —
-`logo-light.png` (ink wordmark) and `logo-dark.png` (white wordmark), both
-keeping the green "a".
+`public/logo/` as **148×44 pills with the background composited in** — drawn at
+296×88 for retina. Two variants ship, `logo-pill-light.png` and
+`logo-pill-dark.png`, both keeping the green "a".
+
+**The pill is baked into the image on purpose.** Clients that impose their own
+dark mode — Gmail and Outlook both do — invert CSS backgrounds but never touch
+images. A CSS pill therefore flips dark in Gmail's dark theme while the ink
+wordmark inside it does not, leaving dark on dark. There is no CSS fix: Gmail
+strips the stylesheet and every class attribute outright (verified by inspecting
+a real message). Baking the pill in makes it one uninvertible unit.
+
+It also fixes Outlook, whose Word engine ignores `border-radius` and was
+rendering the pill as a square-cornered box.
 
 The wordmark is **swapped** for dark mode, not filtered like the icons: the
 icons are single-colour silhouettes that `brightness(0) invert(1)` recolours
 cleanly, but the same filter would flatten the logo's green "a" to plain white.
 The dark variant sits behind an `<!--[if !mso]>` conditional so Outlook, which
 ignores media queries, renders one logo rather than two stacked.
+
+**The icon pill is still CSS-drawn** and therefore still has this problem — it
+inverts in Gmail's dark theme while its ink icons do not. Fixing it means
+splitting the pill across the four icon images so each keeps its own link,
+which is fiddlier than the logo case and has not been done yet.
 
 Note the brand naming convention is inverted from what it looks like:
 `logo-primary-dark.png` means *for dark backgrounds* (a white wordmark).

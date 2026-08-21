@@ -31,13 +31,54 @@ const iconOut = path.join(root, 'public', 'icons');
 const logoOut = path.join(root, 'public', 'logo');
 
 const ICON_SIZE = 40; // displayed at 20px
-const LOGO_WIDTH = 260; // displayed at 130px
+
+/**
+ * The logo pill is composited here rather than built from CSS in the signature.
+ *
+ * Mail clients that apply their own dark mode invert CSS backgrounds but never
+ * touch images. A CSS pill therefore flips to dark in Gmail's dark theme while
+ * the ink wordmark inside it does not — dark on dark, illegible. Baking the
+ * pill into the PNG makes the whole thing one uninvertible unit, so the mark
+ * always sits on its own correct background.
+ *
+ * It also fixes Outlook, whose Word engine ignores border-radius: the rounded
+ * shape is now pixels rather than a CSS property, so Outlook stops rendering a
+ * square-cornered box.
+ *
+ * Everything is 2x: a 148x44 pill displayed at 74x22 CSS pixels... no — drawn
+ * at 296x88 and displayed at 148x44.
+ */
+const SCALE = 2;
+const PILL_W = 148 * SCALE;
+const PILL_H = 44 * SCALE;
+const PILL_RADIUS = PILL_H / 2; // fully rounded
+const PILL_BORDER = 1 * SCALE;
+const LOGO_W = 110 * SCALE; // 5:1 wordmark, so 22px tall displayed
 
 // Brand logo masters. Note the naming: "-dark" means *for dark backgrounds*.
 const BRAND_DOWNLOADS = '/Volumes/My Book/haveaspot/HAS-Brand/public/downloads';
-const LOGOS = [
-	{ from: 'logo-primary-light.png', to: 'logo-light.png' }, // ink + green a
-	{ from: 'logo-primary-dark.png', to: 'logo-dark.png' }, // white + green a
+
+/**
+ * Two pills ship. Clients that honour `prefers-color-scheme` (Apple Mail, iOS
+ * Mail) swap to the dark one; those that strip the stylesheet keep the light
+ * one, which is correct rather than merely tolerable because it carries its own
+ * background.
+ *
+ * The dark fills match the signature's dark tokens exactly — see brand.ts.
+ */
+const LOGO_PILLS = [
+	{
+		from: 'logo-primary-light.png', // ink wordmark + green a
+		to: 'logo-pill-light.png',
+		fill: '#F9FAFB',
+		stroke: '#E5E7EB',
+	},
+	{
+		from: 'logo-primary-dark.png', // white wordmark + green a
+		to: 'logo-pill-dark.png',
+		fill: '#1F1F1F',
+		stroke: '#373737',
+	},
 ];
 
 await mkdir(iconOut, { recursive: true });
@@ -64,8 +105,8 @@ for (const file of icons) {
 	console.log(`✓ icons/${name}.png (${ICON_SIZE}×${ICON_SIZE})`);
 }
 
-// --- Logos -------------------------------------------------------------------
-for (const { from, to } of LOGOS) {
+// --- Logo pills --------------------------------------------------------------
+for (const { from, to, fill, stroke } of LOGO_PILLS) {
 	const source = path.join(BRAND_DOWNLOADS, from);
 
 	try {
@@ -75,12 +116,29 @@ for (const { from, to } of LOGOS) {
 		continue;
 	}
 
-	const info = await sharp(source)
-		.resize({ width: LOGO_WIDTH, withoutEnlargement: true })
+	// The pill itself, drawn as SVG so the rounded corners and hairline border
+	// are resolution-independent before rasterising. Inset by half the stroke
+	// width so the border sits inside the bounds rather than being clipped.
+	const inset = PILL_BORDER / 2;
+	const pill = Buffer.from(
+		`<svg xmlns="http://www.w3.org/2000/svg" width="${PILL_W}" height="${PILL_H}">
+			<rect x="${inset}" y="${inset}"
+			      width="${PILL_W - PILL_BORDER}" height="${PILL_H - PILL_BORDER}"
+			      rx="${PILL_RADIUS}" ry="${PILL_RADIUS}"
+			      fill="${fill}" stroke="${stroke}" stroke-width="${PILL_BORDER}"/>
+		</svg>`,
+	);
+
+	const wordmark = await sharp(source)
+		.resize({ width: LOGO_W, withoutEnlargement: true })
+		.toBuffer();
+
+	const info = await sharp(pill)
+		.composite([{ input: wordmark, gravity: 'centre' }])
 		.png({ compressionLevel: 9 })
 		.toFile(path.join(logoOut, to));
 
-	console.log(`✓ logo/${to} (${info.width}×${info.height})`);
+	console.log(`✓ logo/${to} (${info.width}×${info.height}, pill baked in)`);
 }
 
 console.log('\nDone.');

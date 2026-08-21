@@ -47,7 +47,12 @@ export const ICON_GAP = 12;
 export const ICON_COUNT = 4;
 export const ICON_PILL_PADDING_X = 15;
 
-/** Logo pill geometry. The wordmark is 5:1, so 110px wide is 22px tall. */
+/**
+ * Logo pill geometry. The wordmark is 5:1, so 110px wide is 22px tall.
+ *
+ * These now describe how `build-assets.mjs` composites the pill image rather
+ * than how the markup styles a cell — keep the two in step if either changes.
+ */
 export const LOGO_WIDTH = 110;
 export const LOGO_PILL_PADDING_X = 18;
 
@@ -98,10 +103,10 @@ const DARK_RULES: readonly (readonly [string, string])[] = [
 		`color: ${darkModeInk} !important;`,
 	],
 	['.hsig-disc', `border-top-color: ${darkModeDivider} !important;`],
-	// The pill must invert with everything else. Left at #F9FAFB it would put
-	// the white dark-mode wordmark on a near-white fill, i.e. invisible.
+	// Only the icon pill is still CSS-drawn; the logo pill carries its own baked
+	// background and needs no rule.
 	[
-		'.hsig-logo-pill, .hsig-icon-pill',
+		'.hsig-icon-pill',
 		`background-color: ${darkModePillSurface} !important; border-color: ${darkModeDivider} !important;`,
 	],
 	['.hsig-icon', 'filter: brightness(0) invert(1) !important;'],
@@ -214,26 +219,30 @@ export function renderSignature(opts: {
 	 * logos stacked. Hiding it from Outlook leaves that client on the light
 	 * wordmark, which is correct: Outlook is not applying dark mode either.
 	 */
-	const logoLight = settings.logo_url || `${baseUrl}/logo/logo-light.png`;
-	const logoDark = settings.logo_url_dark || `${baseUrl}/logo/logo-dark.png`;
+	const logoLight = settings.logo_url || `${baseUrl}/logo/logo-pill-light.png`;
+	const logoDark = settings.logo_url_dark || `${baseUrl}/logo/logo-pill-dark.png`;
 
 	/**
-	 * The mark sits in a pill: `#F9FAFB` surface, `#E5E7EB` hairline border,
-	 * 20px radius — the brand's subtle-surface and pill-radius tokens.
+	 * The logo pill is a single image with its background **baked in**, not a
+	 * styled table cell.
 	 *
-	 * Built as a nested single-cell table rather than a styled div, because
-	 * Outlook renders through Word and will not give a div a reliable background
-	 * or padding. Word also ignores `border-radius`, so Outlook shows a square-
-	 * cornered panel — the fill and border still read correctly, which is the
-	 * right way for this to degrade.
+	 * This is the important difference. Clients that impose their own dark mode
+	 * — Gmail and Outlook both do — invert CSS backgrounds but never touch
+	 * images. A CSS pill therefore flips dark in Gmail's dark theme while the
+	 * ink wordmark inside it stays dark: illegible. Verified in Gmail, where the
+	 * stylesheet and every class attribute are stripped outright, so there is no
+	 * CSS-based fix available.
 	 *
-	 * Sizing is chosen so the pill lands on 44px tall — the brand's button
-	 * height — rather than an arbitrary number. The wordmark is 5:1, so a 110px
-	 * logo is 22px tall, plus 10px padding top and bottom and the 1px border.
-	 * That gives a 148×44 pill: wide enough relative to its height to read as a
-	 * pill rather than a lozenge.
+	 * Baking the pill into the PNG makes it one uninvertible unit, so the mark
+	 * always sits on its own correct background whatever a client does around
+	 * it. It also fixes Outlook, whose Word engine ignores `border-radius` and
+	 * was rendering a square-cornered box.
+	 *
+	 * Two pills ship. Clients honouring `prefers-color-scheme` swap to the dark
+	 * one; clients that strip the stylesheet keep the light one, which is now
+	 * correct on any background rather than merely tolerable.
 	 */
-	/** Shared pill styling, so the two pills cannot drift apart. */
+	/** Shared pill styling — now only the icon pill, which is still CSS-drawn. */
 	const pillStyle = `background-color:${brand.surface}; border:1px solid ${brand.borderLight}; border-radius:${radius.pill}px; text-align:center; vertical-align:middle;`;
 
 	/**
@@ -249,10 +258,10 @@ export function renderSignature(opts: {
 	 */
 	const logoHtml = `<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;">
 							<tr>
-								<td class="hsig-logo-pill" align="center" valign="middle" bgcolor="${brand.surface}" style="${pillStyle} padding:10px ${LOGO_PILL_PADDING_X}px;">
-									<img src="${esc(logoLight)}?v=${v}" width="${LOGO_WIDTH}" alt="Haveaspot" class="hsig-logo-light" style="display:block; border:none; outline:none; margin:0 auto;">
+								<td align="left" valign="middle" style="padding:0; font-size:0; line-height:0;">
+									<img src="${esc(logoLight)}?v=${v}" width="${LOGO_PILL_WIDTH}" height="${PILL_HEIGHT}" alt="Haveaspot" class="hsig-logo-light" style="display:block; border:none; outline:none;">
 									<!--[if !mso]><!-->
-									<img src="${esc(logoDark)}?v=${v}" width="${LOGO_WIDTH}" alt="Haveaspot" class="hsig-logo-dark" style="display:none; border:none; outline:none; margin:0 auto; mso-hide:all;">
+									<img src="${esc(logoDark)}?v=${v}" width="${LOGO_PILL_WIDTH}" height="${PILL_HEIGHT}" alt="Haveaspot" class="hsig-logo-dark" style="display:none; border:none; outline:none; mso-hide:all;">
 									<!--<![endif]-->
 								</td>
 							</tr>

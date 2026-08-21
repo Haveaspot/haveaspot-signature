@@ -135,10 +135,11 @@ checks.push(['icon pill shares the pill styling', html.includes('hsig-icon-pill'
 		(noTitle.match(new RegExp(`height:${PILL_HEIGHT}px`, 'g')) ?? []).length === 2,
 	]);
 }
-checks.push([
-	'both pills invert in dark mode',
-	/\.hsig-logo-pill, \.hsig-icon-pill \{/.test(html),
-]);
+// Only the icon pill is CSS-drawn now, so only it needs a dark-mode rule. The
+// logo pill carries its own baked background and must NOT have one — a CSS
+// background behind an image that already has one would show as a fringe.
+checks.push(['icon pill inverts in dark mode', /\.hsig-icon-pill \{/.test(html)]);
+checks.push(['logo pill has no CSS background to invert', !html.includes('hsig-logo-pill')]);
 
 // --- CTA dark mode ----------------------------------------------------------
 // The CTA is a PNG and cannot answer a media query, so both themes are rendered
@@ -196,8 +197,15 @@ checks.push(['CTA swaps in dark mode', /\.hsig-cta-light \{ display: none/.test(
 	checks.push(['no numbers means no line break', !noNumbers.includes('<br>\n') && !/<\/a><br>/.test(noNumbers)]);
 }
 
-checks.push(['light logo present', html.includes('/logo/logo-light.png')]);
-checks.push(['dark logo present', html.includes('/logo/logo-dark.png')]);
+// The pill is baked into the artwork rather than styled in CSS, so clients that
+// impose their own dark mode cannot invert the background out from under the
+// wordmark. Verified in Gmail, which strips the stylesheet and every class.
+checks.push(['light logo pill present', html.includes('/logo/logo-pill-light.png')]);
+checks.push(['dark logo pill present', html.includes('/logo/logo-pill-dark.png')]);
+checks.push([
+	'logo pill is sized to the pill, not the wordmark',
+	new RegExp(`width="${LOGO_PILL_WIDTH}" height="${PILL_HEIGHT}"`).test(html),
+]);
 checks.push(['dark logo hidden by default', html.includes('class="hsig-logo-dark" style="display:none;')]);
 checks.push(['dark logo behind mso conditional', html.includes('<!--[if !mso]><!-->')]);
 checks.push(['logo not inverted like the icons', !html.includes('.hsig-logo {')]);
