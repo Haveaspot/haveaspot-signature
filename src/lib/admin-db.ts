@@ -612,3 +612,36 @@ export async function deleteAnalytics(
 function sumViews(rows: { views: number }[]): number {
 	return rows.reduce((total, row) => total + row.views, 0);
 }
+
+export interface CampaignStats {
+	views: number;
+	clicks: number;
+	visitors: number;
+}
+
+/**
+ * One campaign's numbers, over its whole life rather than a rolling window.
+ *
+ * The analytics dashboard is a window onto recent activity; a campaign page is
+ * about that campaign, which has its own start and end. Applying a 30-day
+ * window here would quietly under-report a campaign that ran in the spring, and
+ * report nothing at all for one that has finished.
+ */
+export async function campaignStats(id: number): Promise<CampaignStats> {
+	const [views, clicks] = await Promise.all([
+		sql<{ n: number }[]>`
+			SELECT COALESCE(sum(views), 0)::int AS n FROM impressions WHERE campaign_id = ${id}
+		`,
+		sql<{ clicks: number; visitors: number }[]>`
+			SELECT count(*)::int AS clicks, count(DISTINCT visitor_hash)::int AS visitors
+			FROM clicks
+			WHERE campaign_id = ${id}
+		`,
+	]);
+
+	return {
+		views: views[0]?.n ?? 0,
+		clicks: clicks[0]?.clicks ?? 0,
+		visitors: clicks[0]?.visitors ?? 0,
+	};
+}

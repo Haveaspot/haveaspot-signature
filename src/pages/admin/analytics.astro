@@ -1,6 +1,7 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import BarChart from '../../components/BarChart.astro';
+import { ctr, OVERFLOW_HINT } from '../../lib/rate';
 import {
 	analyticsSummary,
 	analyticsDaily,
@@ -163,28 +164,6 @@ function countryName(code: string): string {
 function share(n: number, total: number): number {
 	return total === 0 ? 0 : Math.round((n / total) * 100);
 }
-
-/**
- * Click-through rate, to one decimal place.
- *
- * Returns null rather than 0% when there are no views to divide by: a banner
- * nobody has been shown has no rate, and printing 0% would read as "shown and
- * ignored", which is a different and much worse story.
- *
- * A rate over 100% is possible and is not a bug. Gmail serves the banner from
- * its own cache shared across recipients, so one recorded view can cover many
- * people, any number of whom can click. Rather than capping the number — which
- * would quietly turn a signal about caching into a plausible-looking figure —
- * it is shown as it is, flagged, and explained on hover.
- */
-function ctr(clicks: number, views: number): { label: string; overflowed: boolean } | null {
-	if (views === 0) return null;
-	const rate = (clicks / views) * 100;
-	return { label: `${rate.toFixed(1)}%`, overflowed: rate > 100 };
-}
-
-const OVERFLOW_HINT =
-	'More clicks than recorded views. Gmail serves the banner from a cache shared between recipients, so one view can stand for many people — the view count is a floor, which pushes this rate up.';
 ---
 
 <AdminLayout

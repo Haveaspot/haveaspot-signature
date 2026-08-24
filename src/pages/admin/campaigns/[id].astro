@@ -10,7 +10,9 @@ import {
 	listDepartments,
 	listSignatures,
 	campaignStatus,
+	campaignStats,
 } from '../../../lib/admin-db';
+import { ctr, OVERFLOW_HINT, VIEWS_CAVEAT } from '../../../lib/rate';
 
 export const prerender = false;
 
@@ -96,6 +98,23 @@ try {
 
 if (!loadError && !isNew && !campaign) return Astro.redirect('/admin/campaigns', 302);
 
+/**
+ * Performance figures, loaded after the campaign so a new one skips the query.
+ *
+ * Best-effort: a campaign must stay editable even if the stats cannot be read,
+ * so a failure here leaves the panel out rather than blocking the form.
+ */
+let stats: Awaited<ReturnType<typeof campaignStats>> | null = null;
+if (campaign && id !== null) {
+	try {
+		stats = await campaignStats(id);
+	} catch {
+		stats = null;
+	}
+}
+
+const rate = stats ? ctr(stats.clicks, stats.views) : null;
+
 const created = Astro.url.searchParams.get('created') === '1';
 const targetDepts = new Set(campaign?.target_department_ids ?? []);
 const targetStaff = new Set(campaign?.target_signature_ids ?? []);
@@ -123,13 +142,44 @@ const status = campaign ? campaignStatus(campaign) : null;
 				{status && (
 					<p style="margin:0 0 1.5rem">
 						<span class={`badge badge--${status.tone}`}>{status.label}</span>
-						{campaign && campaign.click_count > 0 && (
-							<span class="footnote" style="margin-left:.75rem">
-								{campaign.click_count} click{campaign.click_count === 1 ? '' : 's'} so far
-							</span>
-						)}
 					</p>
 				)}
+
+				{
+					/*
+					 * Shown only once there is something to show. A campaign that has
+					 * not run yet would otherwise open on a row of zeroes, which reads
+					 * as failure rather than as "not started".
+					 */
+					stats && (stats.views > 0 || stats.clicks > 0) && (
+						<section style="margin-bottom:2rem">
+							<div class="stat-grid" style="margin-bottom:0.75rem">
+								<div class="stat">
+									<span class="stat-value">{stats.views.toLocaleString('en-GB')}</span>
+									<span class="stat-label">Banner views</span>
+								</div>
+								<div class="stat">
+									<span class="stat-value">{stats.clicks.toLocaleString('en-GB')}</span>
+									<span class="stat-label">Clicks</span>
+								</div>
+								<div class="stat">
+									<span class="stat-value" title={rate?.overflowed ? OVERFLOW_HINT : undefined}>
+										{rate?.label ?? '—'}
+										{rate?.overflowed && <span class="stat-flag">?</span>}
+									</span>
+									<span class="stat-label">Click-through</span>
+								</div>
+								<div class="stat">
+									<span class="stat-value">{stats.visitors.toLocaleString('en-GB')}</span>
+									<span class="stat-label">Distinct visitors</span>
+								</div>
+							</div>
+							<p class="footnote" style="margin-top:0">
+								This campaign's whole run, not a rolling window. {VIEWS_CAVEAT}
+							</p>
+						</section>
+					)
+				}
 
 				<form method="POST">
 					<fieldset class="group">

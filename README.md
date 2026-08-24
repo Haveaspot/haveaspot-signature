@@ -258,6 +258,28 @@ on the render path and losing the property that makes campaigns cheap. Not
 worth it. Read the rate against itself over time, not against a published
 industry benchmark.
 
+### Campaign performance
+
+A campaign's own page carries its banner views, clicks, click-through rate and
+distinct visitors, **over its whole run rather than a rolling window**. The
+analytics dashboard is a window onto recent activity; a campaign has its own
+start and end, and applying 30 days there would under-report one that ran in the
+spring and show nothing at all for one that has finished.
+
+The panel appears only once there is something to show — a campaign that has not
+run yet would otherwise open on a row of zeroes, which reads as failure rather
+than as "not started".
+
+The rate helper lives in `src/lib/rate.ts` and is shared with the dashboard,
+because the caveat matters as much as the arithmetic and two copies of the
+explanation would drift.
+
+**Deleting a campaign silently reattributes its history.** The click rows survive
+— `ON DELETE SET NULL` — but lose their campaign id, so they fold into the
+default banner and the campaign disappears from the performance table. Its
+numbers are not lost so much as quietly reassigned. Deactivating rather than
+deleting keeps the record intact.
+
 ### Deleting analytics history
 
 The analytics dashboard has a danger zone at the bottom with two deletes:
