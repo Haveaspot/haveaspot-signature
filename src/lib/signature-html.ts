@@ -206,6 +206,25 @@ export function renderSignature(opts: {
 
 	// Every URL baked into the signature must be absolute — the email is read
 	// far away from this server.
+	/**
+	 * The banner keeps its cache-buster; the icons and logo do not.
+	 *
+	 * `v` is the generation timestamp, so every regeneration produces URLs no
+	 * mail client has seen. On the banner that is wanted — it is the escape
+	 * hatch from a client that has cached an old one.
+	 *
+	 * On the icons and the logo it was actively harmful. Their bytes never
+	 * change, but the buster made all six fixed assets brand-new URLs on every
+	 * regeneration, so Gmail proxied six fresh images at once when the message
+	 * arrived. Gmail caches the outcome per URL — a failed fetch included — so
+	 * one dropped request left that icon permanently missing from that signature
+	 * while the other three were fine. Which is exactly the symptom: one icon,
+	 * at random, gone.
+	 *
+	 * Stable URLs mean a reader who has seen any Haveaspot signature already has
+	 * them. The trade is that replacing icon artwork will not reach signatures
+	 * already pasted; change the filename when that day comes.
+	 */
 	const ctaImage = (section: string, theme: 'light' | 'dark') =>
 		`${baseUrl}/api/cta?user=${q}&section=${section}&theme=${theme}&v=${v}`;
 	const track = (asset: string) => `${baseUrl}/api/track/${asset}?user=${q}`;
@@ -255,7 +274,7 @@ export function renderSignature(opts: {
 										<tr>${icons
 											.map(
 												(icon, i) =>
-													`<td width="${ICON_SIZE}" align="center" valign="middle" style="width:${ICON_SIZE}px; ${i < icons.length - 1 ? `padding:0 ${ICON_GAP}px 0 0;` : 'padding:0;'} font-size:0; line-height:0;"><a href="${esc(icon.href)}" style="text-decoration:none;" title="${esc(icon.title)}"><img class="hsig-icon" src="${esc(icon.url)}?v=${v}" width="${ICON_SIZE}" height="${ICON_SIZE}" alt="${esc(icon.title)}" style="display:block; border:none; outline:none;"></a></td>`,
+													`<td width="${ICON_SIZE}" align="center" valign="middle" style="width:${ICON_SIZE}px; ${i < icons.length - 1 ? `padding:0 ${ICON_GAP}px 0 0;` : 'padding:0;'} font-size:0; line-height:0;"><a href="${esc(icon.href)}" style="text-decoration:none;" title="${esc(icon.title)}"><img class="hsig-icon" src="${esc(icon.url)}" width="${ICON_SIZE}" height="${ICON_SIZE}" alt="${esc(icon.title)}" style="display:block; border:none; outline:none;"></a></td>`,
 											)
 											.join('')}</tr>
 									</table>`;
@@ -321,9 +340,9 @@ export function renderSignature(opts: {
 	const logoHtml = `<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;">
 							<tr>
 								<td align="left" valign="middle" style="padding:0; font-size:0; line-height:0;">
-									<img src="${esc(logoLight)}?v=${v}" width="${LOGO_PILL_WIDTH}" height="${PILL_HEIGHT}" alt="Haveaspot" class="hsig-logo-light" style="display:block; border:none; outline:none;">
+									<img src="${esc(logoLight)}" width="${LOGO_PILL_WIDTH}" height="${PILL_HEIGHT}" alt="Haveaspot" class="hsig-logo-light" style="display:block; border:none; outline:none;">
 									<!--[if !mso]><!-->
-									<img src="${esc(logoDark)}?v=${v}" width="${LOGO_PILL_WIDTH}" height="${PILL_HEIGHT}" alt="Haveaspot" class="hsig-logo-dark" style="display:none; border:none; outline:none; mso-hide:all;">
+									<img src="${esc(logoDark)}" width="${LOGO_PILL_WIDTH}" height="${PILL_HEIGHT}" alt="Haveaspot" class="hsig-logo-dark" style="display:none; border:none; outline:none; mso-hide:all;">
 									<!--<![endif]-->
 								</td>
 							</tr>

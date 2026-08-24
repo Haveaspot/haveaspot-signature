@@ -131,6 +131,32 @@ checks.push([
 	/class="hsig-tbl"[^>]*min-width:600px/.test(html),
 ]);
 
+/**
+ * Fixed artwork gets stable URLs; only the banner carries the cache-buster.
+ *
+ * `?v=` is the generation timestamp. On the banner that is the escape hatch
+ * from a client holding an old one. On the icons and logo it made six fixed
+ * assets brand-new URLs on every regeneration, so Gmail proxied six unseen
+ * images at once — and it caches the outcome per URL, a failed fetch included,
+ * leaving one icon permanently missing from that signature.
+ */
+{
+	const iconSrcs = [...html.matchAll(/class="hsig-icon" src="([^"]+)"/g)].map((m) => m[1]!);
+	const logoSrcs = [...html.matchAll(/class="hsig-logo-\w+" src="([^"]+)"/g)].map((m) => m[1]!);
+	checks.push([
+		`icon URLs carry no cache-buster (${iconSrcs.length} checked)`,
+		iconSrcs.length === ICON_COUNT && iconSrcs.every((u) => !u.includes('?v=')),
+	]);
+	checks.push([
+		'logo URLs carry no cache-buster',
+		html.includes('hsig-logo-light') && !/hsig-logo-\w+" src="[^"]*\?v=/.test(html),
+	]);
+	// The fixture pins `version` so the markup is stable, hence `v=test` here
+	// rather than a timestamp — what matters is that the banner still carries one.
+	const ctaUrl = html.match(/\/api\/cta\?[^"]*/)?.[0] ?? '';
+	checks.push(['the banner keeps its cache-buster', /[?&]v=[^&"]+/.test(ctaUrl)]);
+}
+
 // Regression: the icons used to be inline images spaced with `margin-right`,
 // with exactly zero slack inside the pill, so any mobile client that scaled the
 // message down wrapped the last icon onto a second line. One cell per icon

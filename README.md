@@ -239,6 +239,31 @@ exactness in a dashboard.
 If you add another image route, wrap it the same way, and check the header on
 the deployed URL rather than trusting the code.
 
+### Cache-busters: the banner has one, the artwork does not
+
+`?v=` is the generation timestamp, baked into every URL in a signature.
+
+**The banner keeps it.** It is the escape hatch: a client that has cached an old
+banner is stuck with it until the URL changes, and regenerating is how a person
+gets out of that.
+
+**The icons and logo do not.** Their bytes never change, but the buster made all
+six fixed assets brand-new URLs on every regeneration — so Gmail proxied six
+images it had never seen the moment the message arrived. Gmail caches the
+outcome per URL, a failed fetch included, so one dropped request left that icon
+permanently missing from that signature while the other three were fine. One
+icon, at random, gone.
+
+Stable URLs mean a reader who has seen any Haveaspot signature already has them.
+The trade: replacing icon artwork will not reach signatures already pasted, so
+change the filename when that day comes.
+
+Note that Vercel serves every static asset here as `max-age=0, must-revalidate`
+— hashed `/_astro/` files included — and `headers` in `vercel.json` does not
+override it, because the adapter uses the Build Output API. That is a
+revalidation round trip rather than a re-download, so it is a cost rather than a
+fault; the URL churn above was the real problem.
+
 ### The 600px floor on the outer table
 
 `min-width:600px` on `.hsig-tbl` is load-bearing, and it was removed once on
