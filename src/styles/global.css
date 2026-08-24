@@ -1020,9 +1020,48 @@ fieldset.group legend {
 	align-items: center;
 }
 
-/* Sized to the word it asks for, so it reads as a confirmation rather than a
-   field waiting for a sentence. */
+/*
+ * Matched to `.btn--small` beside it — same 32px height, same radius, same
+ * type size — so the pair reads as one control rather than a stray browser
+ * input next to a button. The form controls in `.field` are 44px, which is
+ * right for a form and too tall next to a small button.
+ *
+ * Width is sized to the word it asks for, so it reads as a confirmation rather
+ * than a field waiting for a sentence.
+ */
 .danger-confirm input {
 	width: 9rem;
+	height: 32px;
 	margin: 0;
+	padding: 0 0.75rem;
+	font-family: var(--font);
+	font-size: 0.8125rem;
+	font-weight: 500;
+	color: var(--ink);
+	background: var(--white);
+	border: 1px solid var(--ink);
+	border-radius: var(--radius-button);
+	transition: border-color var(--transition-base), box-shadow var(--transition-base);
+}
+
+.danger-confirm input::placeholder {
+	color: var(--ink);
+	opacity: 0.45;
+	font-weight: 400;
+}
+
+.danger-confirm input:hover {
+	border-color: var(--accent);
+}
+
+.danger-confirm input:focus {
+	outline: none;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px rgba(10, 173, 10, 0.08);
+}
+
+/* Disabled when there is nothing to delete, matching the button's own state. */
+.danger-confirm input:disabled {
+	border-color: var(--border-light);
+	cursor: not-allowed;
 }
