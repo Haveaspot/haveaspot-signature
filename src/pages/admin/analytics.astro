@@ -412,18 +412,22 @@ function share(n: number, total: number): number {
 					</>
 				)}
 
-				<p class="footnote">
-					Visitors are counted by a salted hash of the IP address — enough to tell ten opens by
-					one person from ten people, without storing anything identifying. Dates are UK local.
-				</p>
-				<p class="footnote">
-					<strong>Banner views are a floor, not a true count of opens.</strong> The banner image
-					is cached for five minutes, and Gmail serves it through its own cache shared across
-					recipients, so some opens never reach us. Views therefore under-count and the rate
-					above over-states. Compare it against itself over time — the caching stays roughly
-					constant, so a rate that doubles really has doubled — rather than against a published
-					industry figure.
-				</p>
+				<aside class="notes">
+					<h2>How to read these numbers</h2>
+					<p>
+						Visitors are counted by a salted hash of the IP address — enough to tell ten opens
+						by one person from ten people, without storing anything identifying. Dates are UK
+						local.
+					</p>
+					<p>
+						<strong>Banner views are a floor, not a true count of opens.</strong> The banner
+						image is cached for five minutes, and Gmail serves it through its own cache shared
+						across recipients, so some opens never reach us. Views therefore under-count and
+						the rate above over-states. Compare it against itself over time — the caching
+						stays roughly constant, so a rate that doubles really has doubled — rather than
+						against a published industry figure.
+					</p>
+				</aside>
 
 				<section class="danger-zone">
 					<h2>Delete analytics history</h2>

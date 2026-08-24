@@ -1094,3 +1094,51 @@ fieldset.group legend {
 	aspect-ratio: 148 / 44;
 	object-fit: contain;
 }
+
+/* -----------------------------------------------------------------------------
+   Explanatory notes.
+
+   The caveats under the analytics panels are not incidental fine print — they
+   change how the numbers should be read — but as bare paragraphs they ran the
+   full page width and blurred into the data above. A card gives them an edge to
+   stop against.
+
+   The pale surface and light border, rather than the ink-bordered .panel used
+   for input: this is something to read, not something to act on, and the
+   heavier frame would compete with the tables it follows.
+   ----------------------------------------------------------------------------- */
+
+.notes {
+	margin-top: 2.5rem;
+	padding: 1.5rem;
+	background: var(--surface);
+	border: 1px solid var(--border-light);
+	border-radius: var(--radius-card);
+}
+
+.notes h2 {
+	font-size: 0.75rem;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	margin-bottom: 0.75rem;
+}
+
+.notes p {
+	font-weight: 300;
+	font-size: 0.8125rem;
+	line-height: 1.6;
+	color: var(--ink);
+	/* Long-form prose, so a measure — the tables beside it can run full width,
+	   but 12 words a line is where reading falls apart. */
+	max-width: 78ch;
+	margin: 0 0 0.75rem;
+}
+
+.notes p:last-child {
+	margin-bottom: 0;
+}
+
+.notes strong {
+	font-weight: 600;
+}
