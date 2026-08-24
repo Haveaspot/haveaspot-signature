@@ -67,10 +67,50 @@ const source = config.disableCta
 	</div>
 
 	<p class="footnote">
-		Links are disabled here — following one would log a click against this person and skew
-		their analytics.
+		Shown side by side at reduced size — this is the real signature, not a mock-up, so what
+		you see here is what lands in an inbox. Links are disabled: following one would log a
+		click against this person and skew their analytics.
 	</p>
 </section>
+
+<script>
+	/**
+	 * Scale each pane's signature down to fit beside its twin.
+	 *
+	 * The signature carries a 600px floor and cannot shrink — that floor is what
+	 * stops the Gmail app truncating it, so it is not negotiable. Two panes on a
+	 * 1180px page give roughly 500px each, so the real markup has to be scaled
+	 * rather than reflowed.
+	 *
+	 * `zoom` rather than `transform: scale()`: zoom shrinks the space the element
+	 * occupies, so the pane closes up around it. A transform would scale the
+	 * pixels and leave the original height reserved, giving a tall empty gap
+	 * under each signature.
+	 *
+	 * Measured rather than hard-coded, because the panes reflow with the window
+	 * and a fixed ratio would be wrong at every width but one.
+	 */
+	const SIGNATURE_WIDTH = 600;
+
+	function fit() {
+		document.querySelectorAll<HTMLElement>('.sig-preview__stage').forEach((stage) => {
+			const pane = stage.parentElement;
+			if (!pane) return;
+			// Reset first, so a re-measure after the window grows can scale back up
+			// rather than only ever ratcheting down.
+			stage.style.zoom = '1';
+			const available = pane.clientWidth - 32; // the pane's 1rem padding either side
+			stage.style.zoom = String(Math.min(1, available / SIGNATURE_WIDTH));
+		});
+	}
+
+	fit();
+	addEventListener('resize', fit);
+	// The banner arrives after first paint and can change the pane's height; the
+	// width is what matters here, but re-fitting on load costs nothing and covers
+	// a pane that was still laying out when this first ran.
+	addEventListener('load', fit);
+</script>
 
 <style is:global set:html={`
 	/* The signature's own dark rules, forced on so the dark pane can be seen

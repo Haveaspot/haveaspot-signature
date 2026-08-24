@@ -677,17 +677,25 @@ fieldset.group legend {
 }
 
 /*
- * Light and dark stack rather than sitting side by side.
+ * Light and dark side by side, which is the only arrangement that lets you
+ * compare them.
  *
- * Side by side gave each pane roughly 550px, and the signature cannot go below
- * 600px, so both were cut off at the right — showing two half-signatures rather
- * than one comparison. Stacked, each gets the full width and reads properly.
+ * The signature cannot shrink below 600px — that floor is what stops the Gmail
+ * app truncating it — so the panes cannot simply be narrower. The script in
+ * SignaturePreview.astro scales each signature to fit instead. Below 900px
+ * there is no room for two, so they stack.
  */
 .sig-preview__panes {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr);
+	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 1rem;
 	margin-top: 1rem;
+}
+
+@media (max-width: 900px) {
+	.sig-preview__panes {
+		grid-template-columns: minmax(0, 1fr);
+	}
 }
 
 .sig-preview__pane {
