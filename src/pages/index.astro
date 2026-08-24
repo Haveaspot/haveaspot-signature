@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import { env } from '../lib/env';
+import { darkRulesCss } from '../lib/signature-html';
 
 export const prerender = false;
 
@@ -19,6 +20,24 @@ const allowedDomain = env('ALLOWED_EMAIL_DOMAIN') ?? 'haveaspot.com';
 			href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
 			rel="stylesheet"
 		/>
+		<!--
+			Force the signature's dark rendering when the dark preview is on.
+
+			Those rules live inside the signature's own `prefers-color-scheme: dark`
+			block, which answers the reader's operating system — not a button on this
+			page. Without this, toggling the preview darkened the stage behind the
+			signature and left the signature itself in light mode, which looked like
+			dark mode was broken rather than like the preview was.
+
+			Re-emitted from `darkRulesCss` under the stage's class rather than copied,
+			so the preview cannot drift from what actually lands in an inbox. The same
+			mechanism as the dev preview at /dev/preview.
+
+			`set:html` keeps this out of Astro's style scoping: the signature markup is
+			injected at runtime and carries no scope attribute, so a scoped selector
+			would match nothing.
+		-->
+		<style set:html={darkRulesCss('.preview-stage--dark ')} />
 	</head>
 	<body>
 		<main class="page">

@@ -343,6 +343,29 @@ checks.push([
 // hairline. This was a real bug, caught by rendering the signature in a browser.
 // Resolved from cwd, not import.meta.url: the runner bundles this file to the
 // project root, which would shift any URL-relative path up a directory.
+/**
+ * The generator's dark preview has to force the signature's dark rules on.
+ *
+ * They live in a `prefers-color-scheme: dark` block, which answers the reader's
+ * operating system and not a button on the page — so without this the toggle
+ * darkened the stage behind the signature and left the signature light, which
+ * reads as dark mode being broken.
+ *
+ * Asserted against the source because the failure is invisible on a machine set
+ * to dark mode: there the rules apply anyway and the preview looks correct.
+ */
+{
+	const indexSource = readFileSync('src/pages/index.astro', 'utf8');
+	checks.push([
+		'the generator forces dark rules under the dark preview class',
+		/darkRulesCss\(\s*'\.preview-stage--dark\s'\s*\)/.test(indexSource),
+	]);
+	checks.push([
+		'those rules are re-emitted, not copied',
+		indexSource.includes("import { darkRulesCss }"),
+	]);
+}
+
 const ctaSource = readFileSync('src/pages/api/cta.ts', 'utf8');
 const spacerBase64 = ctaSource.match(/BLANK_PNG = Buffer\.from\(\s*'([^']+)'/)?.[1] ?? '';
 const spacerPng = Buffer.from(spacerBase64, 'base64');

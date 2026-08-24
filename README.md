@@ -141,6 +141,23 @@ depends on another site's asset paths staying put.
   Neon's Query console, which rejects multiple semicolon-separated commands.
   Regenerate it if the schema changes.
 
+### The generator's dark preview
+
+The **Preview dark mode** button on the public generator re-emits the
+signature's own dark rules under `.preview-stage--dark`, via `darkRulesCss()`.
+
+It has to. Those rules live inside `@media (prefers-color-scheme: dark)`, which
+answers the reader's operating system and not a button on a page — so toggling
+the class alone darkened the stage *behind* the signature and left the signature
+in light mode. That reads as dark mode being broken when it is only the preview
+that is.
+
+The bug is invisible on a machine set to dark mode, where the rules apply
+regardless, so there is a test asserting the source emits them.
+
+Same mechanism as the dev preview below, and for the same reason: re-emitted
+rather than copied, so a preview cannot drift from what lands in an inbox.
+
 ### Design preview (dev only)
 
 `/dev/preview` renders the real `renderSignature` output in light and dark, side
