@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import {
 	renderSignature,
 	ICON_COUNT,
+	ICON_SIZE,
 	ICON_PILL_WIDTH,
 	LOGO_PILL_WIDTH,
 	PILL_HEIGHT,
@@ -110,6 +111,28 @@ checks.push([
 	(html.match(/class="hsig-icon"/g) ?? []).length === ICON_COUNT,
 ]);
 checks.push(['icon pill shares the pill styling', html.includes('hsig-icon-pill')]);
+
+// Regression: the icons used to be inline images spaced with `margin-right`,
+// with exactly zero slack inside the pill, so any mobile client that scaled the
+// message down wrapped the last icon onto a second line. One cell per icon
+// cannot wrap. Guard both halves — the cells, and the absence of the margins.
+{
+	const iconCells = (
+		html.match(new RegExp(`width:${ICON_SIZE}px;[^"]*padding:0`, 'g')) ?? []
+	).length;
+	checks.push([
+		`each icon sits in its own cell (found ${iconCells} of ${ICON_COUNT})`,
+		iconCells === ICON_COUNT,
+	]);
+}
+checks.push([
+	'icons are not spaced with margins, which wrap',
+	!new RegExp(`class="hsig-icon"[^>]*margin-right`).test(html),
+]);
+checks.push([
+	'the icon pill refuses to wrap',
+	/hsig-icon-pill[^>]*white-space:nowrap/.test(html),
+]);
 
 // The right column mirrors the left column's 44 / 10 / 44 bands so the name and
 // title centre against the logo pill and the contact line against the icon

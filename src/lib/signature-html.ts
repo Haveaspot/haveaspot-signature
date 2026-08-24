@@ -231,12 +231,26 @@ export function renderSignature(opts: {
 		)
 		.join(pipe);
 
-	const iconsHtml = icons
-		.map(
-			(icon, i) =>
-				`<a href="${esc(icon.href)}" style="text-decoration:none;" title="${esc(icon.title)}"><img class="hsig-icon" src="${esc(icon.url)}?v=${v}" width="${ICON_SIZE}" height="${ICON_SIZE}" alt="${esc(icon.title)}" style="display:inline-block; ${i < icons.length - 1 ? `margin-right:${ICON_GAP}px;` : ''} vertical-align:middle; border:none; outline:none;"></a>`,
-		)
-		.join('');
+	/**
+	 * Each icon gets its own table cell, with the gaps as cell padding.
+	 *
+	 * They used to be inline images separated by `margin-right`, which reads
+	 * more simply but wraps: the row is exactly as wide as the space it has
+	 * (116px of icons inside a 148px pill, no slack at all), so the moment a
+	 * mobile client scales the message down by even a fraction of a percent the
+	 * last icon drops onto a second line and the pill grows into a lozenge.
+	 * Cells in a row cannot wrap, so the geometry holds however the message is
+	 * scaled. The arithmetic is unchanged — three gaps of `ICON_GAP` between
+	 * four `ICON_SIZE` icons — it is just expressed as padding now.
+	 */
+	const iconsHtml = `<table cellpadding="0" cellspacing="0" border="0" align="center" style="border-collapse:collapse; margin:0 auto;">
+										<tr>${icons
+											.map(
+												(icon, i) =>
+													`<td width="${ICON_SIZE}" align="center" valign="middle" style="width:${ICON_SIZE}px; ${i < icons.length - 1 ? `padding:0 ${ICON_GAP}px 0 0;` : 'padding:0;'} font-size:0; line-height:0;"><a href="${esc(icon.href)}" style="text-decoration:none;" title="${esc(icon.title)}"><img class="hsig-icon" src="${esc(icon.url)}?v=${v}" width="${ICON_SIZE}" height="${ICON_SIZE}" alt="${esc(icon.title)}" style="display:block; border:none; outline:none;"></a></td>`,
+											)
+											.join('')}</tr>
+									</table>`;
 
 	// Escape, then linkify, then break lines — in that order. Linkifying before
 	// the <br> substitution keeps the pattern's whitespace boundaries meaningful,
@@ -290,6 +304,9 @@ export function renderSignature(opts: {
 	 * either side brings it to the logo pill's 148px. Change the icon count or
 	 * spacing and `ICON_PILL_PADDING_X` below is what needs recomputing.
 	 *
+	 * The icon row is a nested table, one cell per icon, so it cannot wrap when
+	 * a mobile client scales the message down — see `iconsHtml` above.
+	 *
 	 * The spacer row is an empty cell rather than padding or a margin, because
 	 * Outlook's Word renderer honours neither reliably between table rows.
 	 */
@@ -306,7 +323,7 @@ export function renderSignature(opts: {
 								<td style="height:${PILL_GAP}px; font-size:0; line-height:0;">&nbsp;</td>
 							</tr>
 							<tr>
-								<td class="hsig-icon-pill" align="center" valign="middle" bgcolor="${brand.surface}" style="${pillStyle} padding:11px ${ICON_PILL_PADDING_X}px; font-size:0; line-height:0;">
+								<td class="hsig-icon-pill" align="center" valign="middle" bgcolor="${brand.surface}" style="${pillStyle} padding:11px ${ICON_PILL_PADDING_X}px; font-size:0; line-height:0; white-space:nowrap;">
 									${iconsHtml}
 								</td>
 							</tr>
