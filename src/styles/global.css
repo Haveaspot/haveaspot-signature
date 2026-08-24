@@ -1129,9 +1129,6 @@ fieldset.group legend {
 	font-size: 0.8125rem;
 	line-height: 1.6;
 	color: var(--ink);
-	/* Long-form prose, so a measure — the tables beside it can run full width,
-	   but 12 words a line is where reading falls apart. */
-	max-width: 78ch;
 	margin: 0 0 0.75rem;
 }
 
