@@ -89,10 +89,23 @@ cleanly, but the same filter would flatten the logo's green "a" to plain white.
 The dark variant sits behind an `<!--[if !mso]>` conditional so Outlook, which
 ignores media queries, renders one logo rather than two stacked.
 
+**The icon row is a table, one cell per icon, and its gaps are cell padding.**
+This looks like a needlessly heavy way to space four images and it is not. The
+pill is 148px because the logo pill is, so the icons get exactly the interior
+that is left and not a pixel more. Mobile clients rescale a message to fit the
+screen, and they do not round images and CSS lengths identically — so as inline
+images spaced with `margin-right`, the row overflowed by a pixel on a phone and
+the fourth icon wrapped onto a second line, stretching the pill into a lozenge.
+Cells in a row cannot wrap. The padding is also deliberately wider than the gaps
+(18 vs 10, same 148 total), reserving slack the padding can give back under
+rescaling. Putting that width back into the gaps would look identical on desktop
+and wrap again on a phone.
+
 **The icon pill is still CSS-drawn** and therefore still has this problem — it
 inverts in Gmail's dark theme while its ink icons do not. Fixing it means
 splitting the pill across the four icon images so each keeps its own link,
-which is fiddlier than the logo case and has not been done yet.
+which is fiddlier than the logo case and has not been done yet — though the
+per-icon cells above are now the structure that would carry those slices.
 
 Note the brand naming convention is inverted from what it looks like:
 `logo-primary-dark.png` means *for dark backgrounds* (a white wordmark).
