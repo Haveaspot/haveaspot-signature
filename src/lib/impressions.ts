@@ -6,24 +6,26 @@ import { sql } from './db';
  * ## What the number is, and is not
  *
  * This counts banner image requests that **reached the server**. It is a floor,
- * not a true count of opens, and the gap is not small:
+ * not a true count of opens:
  *
- *  - The image is cached at the CDN for five minutes (`s-maxage=300`), so opens
- *    close together in time collapse into one fetch.
- *  - Gmail proxies images through its own cache, keyed on the URL — and the URL
- *    is the same for every recipient of a given sender. Several people opening
- *    the same campaign can therefore produce a single fetch.
- *  - Clients that block remote images produce none at all.
+ *  - Clients that block remote images produce no request at all, and many
+ *    people never load them.
+ *  - A proxy that dedupes identical URLs between recipients can still collapse
+ *    two opens into one fetch, even though the banner is sent uncacheable.
  *
- * Both effects push the same way: impressions under-report, so any click-through
- * rate derived from them over-reports. The dashboard labels it accordingly.
- * Trends over time are the trustworthy part — the caching behaviour is roughly
- * constant, so a rate that doubles has really doubled, even though its absolute
- * value is an upper bound.
+ * Both push the same way: impressions under-report, so any click-through rate
+ * derived from them over-reports. The dashboard labels it accordingly. Trends
+ * over time are the trustworthy part — the behaviour is roughly constant, so a
+ * rate that doubles has really doubled, even if its absolute value is an upper
+ * bound.
  *
- * None of this is fixable without making the banner uncacheable, which would put
- * every open on the render path and lose the property that makes campaigns cheap.
- * It is the right trade; it just has to be stated rather than papered over.
+ * This was far worse before the banner's cache headers were fixed: it was being
+ * cached for a year, so most opens never reached the server at all. Numbers
+ * from before that fix are not comparable with numbers after it.
+ *
+ * The banner *is* uncacheable, which is what makes campaigns update at all —
+ * see the cache note in `src/pages/api/cta.ts`. That puts every open on the
+ * render path, and is the right trade.
  *
  * ## Why one row per person per campaign per day
  *

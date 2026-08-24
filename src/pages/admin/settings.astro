@@ -131,7 +131,7 @@ try {
 			</section>
 		) : (
 			<form method="POST">
-				{saved && <p class="status status--ok">Saved. Changes reach inboxes within about five minutes.</p>}
+				{saved && <p class="status status--ok">Saved. Changes appear the next time someone opens an email carrying the signature.</p>}
 				{error && <p class="status status--error">Could not save: {error}</p>}
 
 				<fieldset class="group">

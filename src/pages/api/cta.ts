@@ -69,18 +69,33 @@ const BLANK_PNG = Buffer.from(
 );
 
 /**
- * Short cache: campaigns turn over on a schedule, and a stale banner sitting in
- * a mail client's image cache is the failure mode to avoid.
+ * The banner is served uncacheable, deliberately.
  *
- * `max-age=0, must-revalidate` is aimed at the mail client and Gmail's proxy —
- * always check back — while `s-maxage` lets Vercel's edge absorb the load for
- * five minutes. That five minutes is the documented delay before a settings or
- * campaign change reaches an inbox.
+ * These are the headers the WordPress plugin sent, and they are the reason it
+ * behaved correctly where this did not. `public, max-age=0, must-revalidate`
+ * looks strict and is not: `public` explicitly authorises a shared cache —
+ * Gmail proxies every image through one — to store the response, and
+ * `must-revalidate` without an ETag or Last-Modified gives that cache nothing
+ * to revalidate against. A settings change then never reached anyone who had
+ * already opened the email.
+ *
+ * `no-store` says do not keep a copy at all. `Pragma` and the 1984 `Expires`
+ * are for HTTP/1.0-era proxies that ignore Cache-Control, carried over from the
+ * plugin — belt and braces on a response that must not be held anywhere.
+ *
+ * **The cost is a render per open**, since there is no `s-maxage` for Vercel's
+ * edge to hold either. That is the trade the plugin made too, and it is the
+ * right way round: a banner that is occasionally slow is a smaller problem than
+ * a banner that is permanently wrong. If invocation volume ever justifies it,
+ * the answer is a cache on *our* side — as the plugin had, a short-lived server
+ * cache keyed on a version bumped whenever settings change — never a cache in
+ * the reader's mail client, which we cannot reach to clear.
  */
-const CACHE_CONTROL =
-	'public, max-age=0, must-revalidate, s-maxage=300, stale-while-revalidate=60';
-
-const CACHE_HEADERS = { 'Cache-Control': CACHE_CONTROL };
+const CACHE_HEADERS = {
+	'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+	Pragma: 'no-cache',
+	Expires: 'Wed, 11 Jan 1984 05:00:00 GMT',
+};
 
 /**
  * Re-wrap an `ImageResponse` so our cache headers actually reach the client.
@@ -106,7 +121,7 @@ function withCacheHeaders(image: Response): Response {
 		status: image.status,
 		headers: {
 			'Content-Type': image.headers.get('content-type') ?? 'image/png',
-			'Cache-Control': CACHE_CONTROL,
+			...CACHE_HEADERS,
 		},
 	});
 }

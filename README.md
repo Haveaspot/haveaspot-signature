@@ -188,30 +188,44 @@ Campaign windows are evaluated in SQL on **every** image render, so a campaign
 goes live and expires on time regardless of the cron schedule. The cron job is a
 daily health report and mutates nothing.
 
-The real delay before a change reaches inboxes is the CDN cache on the image
-routes — `s-maxage=300`, so up to **5 minutes**. Lower that TTL if campaigns ever
-need to turn over faster; changing the cron frequency would achieve nothing.
+**The banner is served uncacheable**, so a change reaches inboxes as soon as the
+mail client next fetches the image. There is no CDN TTL to wait out.
 
-**`ImageResponse` will silently override that if you let it.** It sets its own
+That is deliberate, and it cost two wrong attempts to get right. The headers are
+the WordPress plugin's, kept verbatim because they are the reason it behaved
+correctly:
+
+```
+Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+Pragma: no-cache
+Expires: Wed, 11 Jan 1984 05:00:00 GMT
+```
+
+Two traps, both of which this got wrong before:
+
+**`ImageResponse` overrides your header if you let it.** It sets
 `cache-control: public, immutable, no-transform, max-age=31536000`, and passing
-`headers` to it does not replace that value — the two are concatenated, ours
-last:
+`headers` appends rather than replaces — caches take the first `max-age` and
+`immutable` means never revalidate, so banners were cached for a *year*.
+`withCacheHeaders()` copies the body into a plain Response so the header is ours
+outright; `headers.set()` on the original leaves the concatenation in place.
 
-```
-public, immutable, no-transform, max-age=31536000, public, max-age=0
-```
+**`public, max-age=0, must-revalidate` is not strict.** It reads that way and is
+not: `public` explicitly authorises a shared cache — and Gmail proxies every
+image through one — to store the response, while `must-revalidate` without an
+ETag or Last-Modified gives that cache nothing to revalidate against. Only
+`no-store` says do not keep a copy.
 
-Caches take the first `max-age` and `immutable` tells them never to revalidate,
-so every banner was cached for a year. A settings change or a new campaign
-reached nobody who had already opened the email — the one thing the tool exists
-to do. It passed every direct test, because a URL fetched for the first time
-always renders fresh; only a reader who had seen the banner before was stuck.
+**The cost is a render per open**, since nothing caches, Vercel's edge included.
+That is the trade the plugin made too, and it is the right way round: a banner
+that is occasionally slow beats a banner that is permanently wrong. If
+invocation volume ever justifies it, the fix is a cache on *our* side — the
+plugin used a five-minute transient keyed on a version bumped whenever settings
+changed — never a cache in the reader's mail client, which we cannot reach to
+clear.
 
-`withCacheHeaders()` in `src/pages/api/cta.ts` copies the body into a plain
-Response so the header is ours outright. Mutating headers on the original does
-not work — `headers.set()` leaves the concatenated value in place. If you ever
-add another image route, wrap it the same way, and check the header on the
-deployed URL rather than trusting the code.
+If you add another image route, wrap it the same way, and check the header on
+the deployed URL rather than trusting the code.
 
 ## Admin area
 

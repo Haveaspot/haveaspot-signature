@@ -381,10 +381,21 @@ checks.push([
 	/function withCacheHeaders/.test(ctaSource) &&
 		!/return new ImageResponse/.test(ctaSource),
 ]);
-checks.push([
-	'the banner is revalidated rather than cached immutably',
-	/must-revalidate/.test(ctaSource) && !/immutable/.test(ctaSource.split('*/').pop() ?? ''),
-]);
+/**
+ * These are the WordPress plugin's headers, kept because they are the reason it
+ * behaved correctly. `public` is the trap: it authorises Gmail's shared image
+ * proxy to store the banner, and a stored banner is a permanently wrong one.
+ */
+{
+	const from = ctaSource.indexOf('const CACHE_HEADERS');
+	const cacheBlock = ctaSource.slice(from, ctaSource.indexOf('};', from));
+	checks.push(['the banner is sent no-store', /no-store/.test(cacheBlock)]);
+	checks.push(['the banner is never sent as public', !/public/.test(cacheBlock)]);
+	checks.push([
+		'HTTP/1.0 proxies are covered too',
+		/Pragma/.test(cacheBlock) && /Expires/.test(cacheBlock),
+	]);
+}
 const spacerBase64 = ctaSource.match(/BLANK_PNG = Buffer\.from\(\s*'([^']+)'/)?.[1] ?? '';
 const spacerPng = Buffer.from(spacerBase64, 'base64');
 

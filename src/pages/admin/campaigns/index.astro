@@ -112,6 +112,7 @@ function targeting(c: (typeof campaigns)[number]): string {
 	<p class="footnote">
 		Times are UK local. Campaigns start and stop on their own — liveness is checked on every
 		render, so nothing has to run on a schedule for them to take effect. A change reaches
-		inboxes within about five minutes, which is the image cache.
+		inboxes the next time someone opens an email carrying the signature — the
+		banner image is fetched fresh each time.
 	</p>
 </AdminLayout>
