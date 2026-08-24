@@ -36,7 +36,11 @@ for (const test of tests) {
 			'--format=esm',
 			`--outfile=${bundle}`,
 			'--log-level=error',
+			// Left unbundled for the same reason: both ship CJS that pulls in
+			// `require('node:buffer')`, which an ESM bundle cannot satisfy. Node
+			// resolves them from node_modules at run time instead.
 			'--external:@vercel/og',
+			'--external:@vercel/blob',
 		],
 		{ stdio: 'inherit' },
 	);

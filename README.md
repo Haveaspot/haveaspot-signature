@@ -199,6 +199,33 @@ How it is put together, and why:
   is down.
 - **Logout is POST only**, so another site cannot sign you out with an image tag.
 
+### Logo overrides
+
+Settings → Logo swaps the bundled Haveaspot pill for something else — a
+sub-brand, or a seasonal mark. Both light and dark can be set, and a logo is
+picked from an uploaded library or pasted as a URL, the same as a banner.
+
+**Two rules make or break a replacement, and both are easy to get wrong:**
+
+**Bake the background into the image.** The bundled pill does this for a reason
+— Gmail and Outlook impose their own dark mode by inverting CSS backgrounds,
+and never touch images. A logo on a transparent background therefore goes
+dark-on-dark in their dark themes. This is the same constraint documented under
+Icons and logo above, and it applies to anything that replaces the pill.
+
+**Produce it at 148×44 (296×88 for retina).** The signature sets both `width`
+and `height` on the logo image, so a mismatched file is **squashed, not
+cropped** — a distorted wordmark rather than trimmed edges, which is much
+easier to miss. The upload warns about this using the real pill geometry, which
+is imported from `signature-html.ts` rather than written down again.
+
+Setting only the light override leaves dark-theme readers on the bundled pill,
+which is usually not what anyone intends.
+
+Banners and logos are stored under separate blob prefixes, listed separately,
+and the delete guard is per-prefix — so a logo cannot be deleted through the
+banner library or vice versa.
+
 ### Banner impressions and click-through rate
 
 Every banner render is an image request to `/api/cta`, so the server sees it.

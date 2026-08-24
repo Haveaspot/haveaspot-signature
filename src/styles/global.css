@@ -1077,3 +1077,20 @@ fieldset.group legend {
 	cursor: help;
 	opacity: 0.6;
 }
+
+/*
+ * Logo thumbnails carry the pill's own proportions (148:44) rather than the
+ * banner's 3:1, so what the field previews is the shape the signature will
+ * actually render — a logo that is about to be squashed looks squashed here.
+ */
+.banner-thumb--logo {
+	max-width: 296px;
+	aspect-ratio: 148 / 44;
+	object-fit: contain;
+	background: var(--surface);
+}
+
+.media-item--logo img {
+	aspect-ratio: 148 / 44;
+	object-fit: contain;
+}

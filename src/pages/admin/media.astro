@@ -7,18 +7,27 @@ import {
 	isConfigured,
 	readDimensions,
 	ratioNote,
+	logoRatioNote,
+	LOGO_SIZE,
+	LOGO_SIZE_2X,
 	MAX_BYTES,
 	MediaNotConfigured,
 } from '../../lib/media';
+import type { MediaKind } from '../../lib/media';
 
 export const prerender = false;
 
 /**
- * Banner library.
+ * Asset library — campaign banners and logo overrides.
  *
  * The WordPress original expected a URL you had already hosted elsewhere. This
- * replaces that: upload here, and the fields that take a banner offer what has
+ * replaces that: upload here, and the fields that take an image offer what has
  * been uploaded rather than an empty box.
+ *
+ * The two kinds are listed and stored separately because they are different
+ * shapes with different failure modes — a banner is cropped to 3:1, a logo is
+ * squashed into the 148×44 pill — and a single picker offering both would
+ * invite putting one where the other belongs.
  */
 
 let notice = '';
@@ -29,9 +38,13 @@ if (Astro.request.method === 'POST') {
 	try {
 		const form = await Astro.request.formData();
 		const action = String(form.get('action') ?? '');
+		// Which library the form was submitted from. Anything unrecognised falls
+		// back to banners rather than erroring, so an old bookmarked form still
+		// does something sensible.
+		const kind: MediaKind = String(form.get('kind')) === 'logo' ? 'logo' : 'banner';
 
 		if (action === 'delete') {
-			await deleteMedia(String(form.get('url') ?? ''));
+			await deleteMedia(String(form.get('url') ?? ''), kind);
 			notice = 'Image deleted.';
 		} else {
 			const file = form.get('file');
@@ -39,17 +52,24 @@ if (Astro.request.method === 'POST') {
 				throw new Error('Choose a file to upload.');
 			}
 
-			// Read the header before storing, so the ratio warning is available
-			// immediately rather than after someone sees a cropped signature.
+			// Read the header before storing, so the shape warning is available
+			// immediately rather than after someone sees a mangled signature.
 			const dims = readDimensions(new Uint8Array(await file.arrayBuffer()));
 
-			const { filename } = await uploadMedia(file);
+			const { filename } = await uploadMedia(file, kind);
 			notice = `Uploaded ${filename}.`;
 
 			if (dims) {
-				const note = ratioNote(dims.width, dims.height);
+				const note =
+					kind === 'logo'
+						? logoRatioNote(dims.width, dims.height)
+						: ratioNote(dims.width, dims.height);
 				warning = note
-					? `${dims.width}×${dims.height}. ${note} Banners work best at 3:1 — 1080×360.`
+					? `${dims.width}×${dims.height}. ${note} ${
+							kind === 'logo'
+								? `Logos work best at ${LOGO_SIZE} (${LOGO_SIZE_2X} for retina).`
+								: 'Banners work best at 3:1 — 1080×360.'
+						}`
 					: '';
 			}
 		}
@@ -59,12 +79,13 @@ if (Astro.request.method === 'POST') {
 }
 
 let media: Awaited<ReturnType<typeof listMedia>> = [];
+let logos: Awaited<ReturnType<typeof listMedia>> = [];
 let loadError = '';
 const configured = isConfigured();
 
 if (configured) {
 	try {
-		media = await listMedia();
+		[media, logos] = await Promise.all([listMedia('banner'), listMedia('logo')]);
 	} catch (err) {
 		loadError = err instanceof Error ? err.message : String(err);
 	}
@@ -74,11 +95,44 @@ const sizeFmt = (bytes: number) =>
 	bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
 
 const dateFmt = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' });
+
+/**
+ * The two libraries, described once and rendered by the same markup below.
+ *
+ * Written as data rather than as two near-identical blocks of markup, because
+ * the upload form and the grid are genuinely the same thing twice — only the
+ * wording, the shape and the delete warning change.
+ *
+ * The per-kind advice stays in the template rather than joining this array:
+ * Astro frontmatter is TypeScript, not JSX, so markup cannot live here.
+ */
+const SECTIONS = [
+	{
+		kind: 'banner' as const,
+		id: 'banners',
+		title: 'Banners',
+		items: media,
+		heading: 'Upload a banner',
+		empty: 'No banners uploaded yet.',
+		deleteWarning: 'Any campaign still pointing at it will lose its banner.',
+		thumbClass: 'media-item',
+	},
+	{
+		kind: 'logo' as const,
+		id: 'logos',
+		title: 'Logos',
+		items: logos,
+		heading: 'Upload a logo',
+		empty: 'No logos uploaded yet — signatures use the bundled Haveaspot pill.',
+		deleteWarning: 'Any signature set to use it falls back to the bundled pill.',
+		thumbClass: 'media-item media-item--logo',
+	},
+];
 ---
 
 <AdminLayout
-	title="Banners"
-	lede="Artwork for campaign banners. Upload here and it becomes selectable wherever a banner image is used."
+	title="Banners & logos"
+	lede="Artwork for campaign banners and logo overrides. Upload here and it becomes selectable wherever an image is used."
 	section="media"
 >
 	{
@@ -107,60 +161,91 @@ const dateFmt = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' });
 				{warning && <p class="status status--warn">{warning}</p>}
 				{error && <p class="status status--error">{error}</p>}
 
-				<section class="panel" style="margin-bottom:2rem">
-					<h2>Upload a banner</h2>
-					<form method="POST" enctype="multipart/form-data" class="inline-form">
-						<div class="field" style="margin:0; flex:1">
-							<label for="file" class="sr-only">Image file</label>
-							<input id="file" name="file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" required />
-						</div>
-						<button type="submit" class="btn">Upload</button>
-					</form>
-					<p class="footnote">
-						PNG, JPEG, WebP or GIF, up to {MAX_BYTES / 1024 / 1024}MB. Produce at <strong>3:1</strong> —
-						1080×360 works well. Other ratios are cropped to fit rather than letterboxed, and
-						you will be told if that applies.
-					</p>
-				</section>
+				{
+					SECTIONS.map((section) => (
+						<section id={section.id} style="margin-bottom:3rem">
+							<h2>{section.title}</h2>
 
-				{media.length === 0 ? (
-					<div class="table-wrap">
-						<p class="empty">Nothing uploaded yet.</p>
-					</div>
-				) : (
-					<div class="media-grid">
-						{
-							media.map((m) => (
-								<figure class="media-item">
-									<img src={m.url} alt={m.filename} loading="lazy" />
-									<figcaption>
-										<strong>{m.filename}</strong>
-										<span class="hint">
-											{sizeFmt(m.size)} · {dateFmt.format(m.uploadedAt)}
-										</span>
-										<div class="media-actions">
-											<button
-												type="button"
-												class="btn btn--secondary btn--small copy-url"
-												data-url={m.url}
-											>
-												Copy URL
-											</button>
-											<form
-												method="POST"
-												onsubmit={`return confirm('Delete ${m.filename}? Any campaign still pointing at it will lose its banner.')`}
-											>
-												<input type="hidden" name="action" value="delete" />
-												<input type="hidden" name="url" value={m.url} />
-												<button type="submit" class="btn btn--danger btn--small">Delete</button>
-											</form>
-										</div>
-									</figcaption>
-								</figure>
-							))
-						}
-					</div>
-				)}
+							<div class="panel" style="margin-bottom:1.5rem">
+								<h3>{section.heading}</h3>
+								<form method="POST" enctype="multipart/form-data" class="inline-form">
+									<input type="hidden" name="kind" value={section.kind} />
+									<div class="field" style="margin:0; flex:1">
+										<label for={`file-${section.kind}`} class="sr-only">
+											Image file
+										</label>
+										<input
+											id={`file-${section.kind}`}
+											name="file"
+											type="file"
+											accept="image/png,image/jpeg,image/webp,image/gif"
+											required
+										/>
+									</div>
+									<button type="submit" class="btn">Upload</button>
+								</form>
+								<p class="footnote">
+									PNG, JPEG, WebP or GIF, up to {MAX_BYTES / 1024 / 1024}MB.{' '}
+									{section.kind === 'logo' ? (
+										<>
+											Produce at <strong>{LOGO_SIZE}</strong> ({LOGO_SIZE_2X} for retina),{' '}
+											<strong>with the pill background baked into the image</strong>. Gmail and
+											Outlook invert CSS backgrounds but never touch images, so a logo on a
+											transparent background goes dark-on-dark in their dark themes. Other ratios
+											are squashed to fit, not cropped.
+										</>
+									) : (
+										<>
+											Produce at <strong>3:1</strong> — 1080×360 works well. Other ratios are
+											cropped to fit rather than letterboxed, and you will be told if that
+											applies.
+										</>
+									)}
+								</p>
+							</div>
+
+							{section.items.length === 0 ? (
+								<div class="table-wrap">
+									<p class="empty">{section.empty}</p>
+								</div>
+							) : (
+								<div class="media-grid">
+									{section.items.map((m) => (
+										<figure class={section.thumbClass}>
+											<img src={m.url} alt={m.filename} loading="lazy" />
+											<figcaption>
+												<strong>{m.filename}</strong>
+												<span class="hint">
+													{sizeFmt(m.size)} · {dateFmt.format(m.uploadedAt)}
+												</span>
+												<div class="media-actions">
+													<button
+														type="button"
+														class="btn btn--secondary btn--small copy-url"
+														data-url={m.url}
+													>
+														Copy URL
+													</button>
+													<form
+														method="POST"
+														onsubmit={`return confirm('Delete ${m.filename}? ${section.deleteWarning}')`}
+													>
+														<input type="hidden" name="action" value="delete" />
+														<input type="hidden" name="kind" value={section.kind} />
+														<input type="hidden" name="url" value={m.url} />
+														<button type="submit" class="btn btn--danger btn--small">
+															Delete
+														</button>
+													</form>
+												</div>
+											</figcaption>
+										</figure>
+									))}
+								</div>
+							)}
+						</section>
+					))
+				}
 			</>
 		)
 	}

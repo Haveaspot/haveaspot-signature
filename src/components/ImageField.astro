@@ -1,5 +1,6 @@
 ---
-import type { MediaItem } from '../lib/media';
+import type { MediaItem, MediaKind } from '../lib/media';
+import { LOGO_SIZE, LOGO_SIZE_2X } from '../lib/media';
 
 interface Props {
 	name: string;
@@ -7,12 +8,21 @@ interface Props {
 	label?: string;
 	media: MediaItem[];
 	configured: boolean;
+	/** Which library to offer, and which guidance to give. */
+	kind?: MediaKind;
 }
 
-const { name, value = '', label = 'Promo banner image', media, configured } = Astro.props;
+const {
+	name,
+	value = '',
+	label = 'Promo banner image',
+	media,
+	configured,
+	kind = 'banner',
+} = Astro.props;
 
 /**
- * A banner image field: pick from the library, or paste a URL.
+ * An image field: pick from the library, or paste a URL.
  *
  * Both are offered rather than replacing the URL box, because the field has to
  * keep working for artwork hosted elsewhere — and because it must not become
@@ -22,8 +32,13 @@ const { name, value = '', label = 'Promo banner image', media, configured } = As
  *
  * The thumbnail updates from whatever the input holds, so a pasted URL is
  * previewed too, not just a picked one.
+ *
+ * One component for banners and logos rather than two: the picker, the URL
+ * fallback and the live thumbnail are identical, and only the shape and the
+ * advice differ. Two copies of this script would drift.
  */
-const id = `banner-${name}`;
+const id = `${kind}-${name}`;
+const isLogo = kind === 'logo';
 ---
 
 <div class="field banner-field" data-banner-field>
@@ -31,7 +46,7 @@ const id = `banner-${name}`;
 
 	{
 		configured && media.length > 0 && (
-			<select class="banner-picker" aria-label="Choose an uploaded banner">
+			<select class="banner-picker" aria-label={`Choose an uploaded ${kind}`}>
 				<option value="">Choose from the library…</option>
 				{media.map((m) => <option value={m.url}>{m.filename}</option>)}
 			</select>
@@ -48,11 +63,22 @@ const id = `banner-${name}`;
 					: 'Nothing uploaded yet — '
 				: ''
 		}
-		<a href="/admin/media">{configured ? 'Manage banners' : 'Set up uploads'}</a>. Produce at 3:1 —
-		1080×360 works well. Other ratios are cropped.
+		<a href={isLogo ? '/admin/media#logos' : '/admin/media'}>
+			{configured ? (isLogo ? 'Manage logos' : 'Manage banners') : 'Set up uploads'}
+		</a>.
+		{
+			isLogo ? (
+				<>
+					{' '}Produce at <strong>{LOGO_SIZE}</strong> ({LOGO_SIZE_2X} for retina), with the pill
+					background baked into the image. Other ratios are squashed to fit, not cropped.
+				</>
+			) : (
+				<> Produce at 3:1 — 1080×360 works well. Other ratios are cropped.</>
+			)
+		}
 	</span>
 
-	<img class="banner-thumb" alt="" hidden />
+	<img class={isLogo ? 'banner-thumb banner-thumb--logo' : 'banner-thumb'} alt="" hidden />
 </div>
 
 <script>

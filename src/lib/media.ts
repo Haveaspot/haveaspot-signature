@@ -1,8 +1,9 @@
 import { put, del, list } from '@vercel/blob';
 import { env } from './env';
+import { LOGO_PILL_WIDTH, PILL_HEIGHT } from './signature-html';
 
 /**
- * Uploaded banner artwork.
+ * Uploaded artwork — campaign banners and logo overrides.
  *
  * The WordPress original took a URL and expected you to have put the image
  * somewhere else first — usually the WP media library. That indirection is the
@@ -19,7 +20,19 @@ import { env } from './env';
  * recipient only ever sees the rendered card.
  */
 
-const PREFIX = 'banners/';
+/**
+ * Banners and logos are kept apart.
+ *
+ * Not tidiness: they are different shapes with different rules, and a picker
+ * that offered both would invite putting a 1080×360 banner where a 148×44 pill
+ * belongs. Separate prefixes also mean the delete guard stays exact.
+ */
+export type MediaKind = 'banner' | 'logo';
+
+const PREFIXES: Record<MediaKind, string> = {
+	banner: 'banners/',
+	logo: 'logos/',
+};
 
 /** Formats Satori can composite. SVG is excluded — it cannot rasterise it. */
 const ALLOWED = new Map<string, string>([
@@ -64,14 +77,15 @@ function token(): string {
 	return value;
 }
 
-export async function listMedia(): Promise<MediaItem[]> {
-	const { blobs } = await list({ prefix: PREFIX, token: token() });
+export async function listMedia(kind: MediaKind = 'banner'): Promise<MediaItem[]> {
+	const prefix = PREFIXES[kind];
+	const { blobs } = await list({ prefix, token: token() });
 
 	return blobs
 		.map((b) => ({
 			url: b.url,
 			pathname: b.pathname,
-			filename: b.pathname.slice(PREFIX.length),
+			filename: b.pathname.slice(prefix.length),
 			size: b.size,
 			uploadedAt: new Date(b.uploadedAt),
 		}))
@@ -83,7 +97,8 @@ export interface UploadResult {
 	filename: string;
 }
 
-export async function uploadMedia(file: File): Promise<UploadResult> {
+export async function uploadMedia(file: File, kind: MediaKind = 'banner'): Promise<UploadResult> {
+	const prefix = PREFIXES[kind];
 	const extension = ALLOWED.get(file.type);
 	if (!extension) {
 		throw new Error(
@@ -105,22 +120,22 @@ export async function uploadMedia(file: File): Promise<UploadResult> {
 			.replace(/\.[^.]+$/, '')
 			.replace(/[^a-zA-Z0-9-_ ]/g, '')
 			.trim()
-			.slice(0, 60) || 'banner';
+			.slice(0, 60) || kind;
 
-	const blob = await put(`${PREFIX}${base}.${extension}`, file, {
+	const blob = await put(`${prefix}${base}.${extension}`, file, {
 		access: 'public',
 		addRandomSuffix: true,
 		token: token(),
 	});
 
-	return { url: blob.url, filename: blob.pathname.slice(PREFIX.length) };
+	return { url: blob.url, filename: blob.pathname.slice(prefix.length) };
 }
 
-export async function deleteMedia(url: string): Promise<void> {
-	// Only ever delete within our own prefix, so a crafted URL cannot reach
-	// another blob in the same store.
-	if (!new URL(url).pathname.includes(`/${PREFIX}`)) {
-		throw new Error('That URL is not a banner in this library.');
+export async function deleteMedia(url: string, kind: MediaKind = 'banner'): Promise<void> {
+	// Only ever delete within the prefix being managed, so a crafted URL cannot
+	// reach another blob in the same store — including one of the other kind.
+	if (!new URL(url).pathname.includes(`/${PREFIXES[kind]}`)) {
+		throw new Error(`That URL is not a ${kind} in this library.`);
 	}
 	await del(url, { token: token() });
 }
@@ -179,10 +194,37 @@ export function readDimensions(buf: Uint8Array): { width: number; height: number
 /** The ratio the CTA renderer composites promo art at. */
 export const TARGET_RATIO = 3;
 
+/**
+ * The logo's ratio, taken from the pill geometry rather than written down
+ * again, so the guidance cannot drift from what the signature actually renders.
+ */
+export const LOGO_RATIO = LOGO_PILL_WIDTH / PILL_HEIGHT;
+
+/** Native size of the pill, and the 2x size worth producing for retina. */
+export const LOGO_SIZE = `${LOGO_PILL_WIDTH}×${PILL_HEIGHT}`;
+export const LOGO_SIZE_2X = `${LOGO_PILL_WIDTH * 2}×${PILL_HEIGHT * 2}`;
+
 export function ratioNote(width: number, height: number): string | null {
 	const ratio = width / height;
 	if (Math.abs(ratio - TARGET_RATIO) < 0.08) return null;
 	return ratio > TARGET_RATIO
 		? 'Wider than 3:1 — the left and right edges will be cropped.'
 		: 'Taller than 3:1 — the top and bottom will be cropped.';
+}
+
+/**
+ * The logo warning is about stretching, not cropping — a genuinely different
+ * failure from the banner's.
+ *
+ * The signature sets both `width` and `height` on the logo image, so a
+ * mismatched file is squashed to fit rather than trimmed. Someone told their
+ * logo will be "cropped" would look for missing edges; the actual symptom is a
+ * distorted wordmark, which is easy to miss and worth naming precisely.
+ */
+export function logoRatioNote(width: number, height: number): string | null {
+	const ratio = width / height;
+	if (Math.abs(ratio - LOGO_RATIO) < 0.08) return null;
+	return ratio > LOGO_RATIO
+		? `Wider than the ${LOGO_SIZE} pill — it will be squashed horizontally, not cropped.`
+		: `Taller than the ${LOGO_SIZE} pill — it will be stretched horizontally, not cropped.`;
 }

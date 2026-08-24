@@ -2,7 +2,7 @@
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getSettings, setSetting, SETTING_DEFAULTS } from '../../lib/settings';
 import type { SettingKey } from '../../lib/settings';
-import BannerField from '../../components/BannerField.astro';
+import ImageField from '../../components/ImageField.astro';
 import CtaPreview from '../../components/CtaPreview.astro';
 import { listMedia, isConfigured } from '../../lib/media';
 
@@ -56,18 +56,10 @@ const FIELDS: {
 	{ key: 'link_web', label: 'Website icon link', type: 'url' },
 	{ key: 'link_mail', label: 'Mail icon link', type: 'url' },
 	{ key: 'link_li', label: 'LinkedIn icon link', type: 'url' },
-	{
-		key: 'logo_url',
-		label: 'Logo override (light)',
-		hint: 'Leave blank to use the bundled pill. A replacement must have its own background baked in — see the README.',
-		type: 'url',
-	},
-	{
-		key: 'logo_url_dark',
-		label: 'Logo override (dark)',
-		hint: 'Leave blank to use the bundled pill.',
-		type: 'url',
-	},
+	// The logo fields render through ImageField, which carries its own guidance,
+	// so no `hint` here — two copies would drift.
+	{ key: 'logo_url', label: 'Logo override (light)', type: 'url' },
+	{ key: 'logo_url_dark', label: 'Logo override (dark)', type: 'url' },
 	{
 		key: 'disclaimer_text',
 		label: 'Disclaimer',
@@ -109,11 +101,13 @@ let loadError = '';
 // still accepts a pasted URL, so a blob outage must not block editing settings.
 const mediaConfigured = isConfigured();
 let media: Awaited<ReturnType<typeof listMedia>> = [];
+let logos: Awaited<ReturnType<typeof listMedia>> = [];
 if (mediaConfigured) {
 	try {
-		media = await listMedia();
+		[media, logos] = await Promise.all([listMedia('banner'), listMedia('logo')]);
 	} catch {
 		media = [];
+		logos = [];
 	}
 }
 
@@ -174,7 +168,7 @@ try {
 						)
 					}
 
-					<BannerField
+					<ImageField
 						name="promo_image_url"
 						value={settings?.promo_image_url ?? ''}
 						media={media}
@@ -198,13 +192,22 @@ try {
 
 				<fieldset class="group">
 					<legend>Logo</legend>
+					<p class="footnote" style="margin-top:0">
+						Leave both blank to use the bundled Haveaspot pill. Set them to swap the wordmark
+						for something else — a sub-brand, or a seasonal mark. Two are needed because mail
+						clients with a dark theme show the dark one; set only the light and dark-theme
+						readers keep seeing it.
+					</p>
 					{
 						FIELDS.filter((f) => f.key.startsWith('logo_')).map((field) => (
-							<div class="field">
-								<label for={field.key}>{field.label}</label>
-								<input id={field.key} name={field.key} type="url" value={settings?.[field.key] ?? ''} />
-								{field.hint && <span class="hint">{field.hint}</span>}
-							</div>
+							<ImageField
+								name={field.key}
+								label={field.label}
+								value={settings?.[field.key] ?? ''}
+								media={logos}
+								configured={mediaConfigured}
+								kind="logo"
+							/>
 						))
 					}
 				</fieldset>

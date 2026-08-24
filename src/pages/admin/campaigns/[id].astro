@@ -1,6 +1,6 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
-import BannerField from '../../../components/BannerField.astro';
+import ImageField from '../../../components/ImageField.astro';
 import CtaPreview from '../../../components/CtaPreview.astro';
 import { listMedia, isConfigured } from '../../../lib/media';
 import {
@@ -261,7 +261,7 @@ const status = campaign ? campaignStatus(campaign) : null;
 							<input id="cta_link" name="cta_link" type="url" value={campaign?.cta_link} />
 						</div>
 
-						<BannerField
+						<ImageField
 							name="promo_image_url"
 							value={campaign?.promo_image_url ?? ''}
 							media={media}
