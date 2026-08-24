@@ -239,6 +239,29 @@ exactness in a dashboard.
 If you add another image route, wrap it the same way, and check the header on
 the deployed URL rather than trusting the code.
 
+### Why the card is inset from the top and bottom of its artwork
+
+The card's border is drawn *into* the image, and it used to sit on the very
+outermost pixel row. A mail client scales the 1200px-wide artwork down to phone
+width — roughly 0.3x — so a 2px border becomes 0.6 of a screen pixel. Round the
+displayed height down and it disappears: the card showed open at the bottom,
+coming and going with the rounding, on the same image.
+
+`BLEED` gives it 8 device pixels of the signature's own background above and
+below, so anything a client trims is background rather than border. Verified by
+scaling to real phone widths and clipping rows: before, one clipped pixel lost
+the edge at three of four widths; after, it survives three.
+
+**Vertical only.** The width is pinned to 100% by the signature so nothing is
+lost off the sides — the left and right borders were always intact — and
+insetting horizontally would make the card narrower than the header and
+disclaimer it sits between.
+
+The WordPress original never hit this. Its banner was a flat filled rectangle
+and the card border lived on the HTML table, so there was nothing at the image
+edge to lose. Ours has rounded corners, which Outlook's Word renderer cannot do
+in HTML, so the border has to stay in the artwork — and gets a margin instead.
+
 ### Why the banner is a JPEG
 
 `ImageResponse` only emits PNG, which stores every pixel exactly. Right for a

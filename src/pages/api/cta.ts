@@ -49,7 +49,30 @@ const px = (value: number) => value * SCALE;
 const WIDTH = px(DISPLAY_WIDTH);
 const PADDING = px(28);
 const BORDER = px(2);
-const CONTENT_WIDTH = WIDTH - PADDING * 2 - BORDER * 2;
+
+/**
+ * A margin of background inside the image, around the card.
+ *
+ * The card's border is drawn into the artwork, and until now it sat on the very
+ * outermost pixels. A mail client scales a 1200px-wide image down to phone
+ * width — roughly 0.3x — so the 2px border becomes 0.6 of a screen pixel, and
+ * when the client rounds the displayed height down it lands on the wrong side
+ * of that boundary and the bottom edge simply disappears. Same image, different
+ * rounding, which is why it came and went.
+ *
+ * The WordPress original never hit this: its banner was a flat filled rectangle
+ * and the border lived on the HTML table, so there was nothing at the image
+ * edge to lose. Ours draws rounded corners, which HTML cannot do in Outlook, so
+ * the border has to stay in the artwork — and instead gets room to be clipped
+ * into.
+ *
+ * Eight device pixels, four at display size. Invisible against the signature
+ * background, and enough that anything a client trims is background not border.
+ */
+const BLEED = px(4);
+
+/** Usable width inside the card. The bleed is vertical only, so it does not count. */
+const CONTENT_WIDTH = WIDTH - BORDER * 2 - PADDING * 2;
 
 const HEADING_SIZE = px(16);
 const HEADING_LINE = px(24);
@@ -306,7 +329,7 @@ export async function drawCta(
 
 		return deliver(
 			new ImageResponse(
-				card(surface, borderColour, [
+				card(surface, borderColour, pageBackground, [
 					h('img', {
 						src: config.promoImageUrl,
 						style: {
@@ -319,7 +342,7 @@ export async function drawCta(
 				]),
 				{
 					width: WIDTH,
-					height: promoHeight + PADDING * 2 + BORDER * 2,
+					height: promoHeight + PADDING * 2 + BORDER * 2 + BLEED * 2,
 					fonts,
 					headers: CACHE_HEADERS,
 				},
@@ -337,6 +360,7 @@ export async function drawCta(
 	const height =
 		PADDING * 2 +
 		BORDER * 2 +
+		BLEED * 2 +
 		lineCount * HEADING_LINE +
 		HEADING_GAP +
 		(hasPromo ? promoHeight + HEADING_GAP : 0) +
@@ -344,7 +368,7 @@ export async function drawCta(
 
 	return deliver(
 		new ImageResponse(
-			card(surface, borderColour, [
+			card(surface, borderColour, pageBackground, [
 				h(
 					'div',
 					{ style: { display: 'flex', flexDirection: 'column' } },
@@ -414,7 +438,14 @@ export async function drawCta(
  * stray white rectangle when the reader is in dark mode — the one place the
  * image-based approach would otherwise look broken.
  */
-function card(surface: string, borderColour: string, children: unknown[]) {
+function card(
+	surface: string,
+	borderColour: string,
+	background: string,
+	children: unknown[],
+) {
+	// Outer layer is the signature's own background, so the pixels a client may
+	// round away are background rather than the card's border. See BLEED.
 	return h(
 		'div',
 		{
@@ -422,16 +453,33 @@ function card(surface: string, borderColour: string, children: unknown[]) {
 				width: '100%',
 				height: '100%',
 				display: 'flex',
-				flexDirection: 'column',
-				alignItems: 'flex-start',
 				boxSizing: 'border-box',
-				padding: `${PADDING}px`,
-				backgroundColor: surface,
-				border: `${BORDER}px solid ${borderColour}`,
-				borderRadius: `${px(radius.card)}px`,
-				fontFamily: 'Poppins',
+				// Vertical only. The width is pinned to 100% by the signature, so
+				// nothing is lost off the sides — the left and right borders were
+				// always intact — and insetting horizontally would make the card
+				// narrower than the header and disclaimer it sits between.
+				padding: `${BLEED}px 0`,
+				backgroundColor: background,
 			},
 		},
-		...children,
+		h(
+			'div',
+			{
+				style: {
+					width: '100%',
+					height: '100%',
+					display: 'flex',
+					flexDirection: 'column',
+					alignItems: 'flex-start',
+					boxSizing: 'border-box',
+					padding: `${PADDING}px`,
+					backgroundColor: surface,
+					border: `${BORDER}px solid ${borderColour}`,
+					borderRadius: `${px(radius.card)}px`,
+					fontFamily: 'Poppins',
+				},
+			},
+			...children,
+		),
 	);
 }

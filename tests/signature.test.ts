@@ -437,6 +437,32 @@ checks.push([
 	'chroma subsampling is off, so hard edges keep their colour',
 	/chromaSubsampling: JPEG_CHROMA/.test(ctaSource) && /'4:4:4'/.test(ctaSource),
 ]);
+
+/**
+ * The card's bottom border must not sit on the outermost pixel row.
+ *
+ * A mail client scales a 1200px image down to phone width — about 0.3x — so the
+ * 2px border becomes 0.6 of a screen pixel, and rounding the displayed height
+ * down removed it entirely. The card then appeared open at the bottom, coming
+ * and going with the rounding.
+ *
+ * The WordPress original never hit this: its banner was a flat rectangle and the
+ * border lived on the HTML table. Ours has rounded corners, which Outlook cannot
+ * do in HTML, so the border stays in the artwork and gets a margin instead.
+ */
+checks.push([
+	'the card is inset from the top and bottom of the artwork',
+	/const BLEED = px\(\d+\)/.test(ctaSource) && /padding: `\$\{BLEED\}px 0`/.test(ctaSource),
+]);
+checks.push([
+	'the bleed is vertical only, so the card stays full width',
+	!/padding: `\$\{BLEED\}px`/.test(ctaSource) &&
+		/CONTENT_WIDTH = WIDTH - BORDER \* 2 - PADDING \* 2/.test(ctaSource),
+]);
+checks.push([
+	'both heights allow for the bleed',
+	(ctaSource.match(/BLEED \* 2/g) ?? []).length === 2,
+]);
 const spacerBase64 = ctaSource.match(/BLANK_PNG = Buffer\.from\(\s*'([^']+)'/)?.[1] ?? '';
 const spacerPng = Buffer.from(spacerBase64, 'base64');
 
