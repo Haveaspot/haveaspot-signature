@@ -85,9 +85,17 @@ h3 {
 	padding: 3rem 1.5rem 5rem;
 }
 
+/*
+ * The form takes a fixed column and the preview takes the rest.
+ *
+ * It was a 1 : 1.4 ratio, which left the preview about 545px of usable width —
+ * narrower than the signature, which carries a 600px floor and so cannot shrink
+ * to fit. It spilled out of its own bordered box. A fixed 380px form leaves the
+ * preview 616px inside its padding, which fits with a little to spare.
+ */
 .grid {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+	grid-template-columns: 380px minmax(0, 1fr);
 	gap: 2.5rem;
 	align-items: start;
 }
@@ -279,6 +287,10 @@ h3 {
 	background: var(--white);
 	border: 1px solid var(--border-light);
 	border-radius: var(--radius-card);
+	/* Below the breakpoint the column is narrower than the signature's 600px
+	   floor. Scrolling inside the box keeps the overflow contained rather than
+	   letting it run out past the rounded border. */
+	overflow-x: auto;
 }
 
 .preview-stage--dark {
@@ -664,9 +676,16 @@ fieldset.group legend {
 	margin: 0;
 }
 
+/*
+ * Light and dark stack rather than sitting side by side.
+ *
+ * Side by side gave each pane roughly 550px, and the signature cannot go below
+ * 600px, so both were cut off at the right — showing two half-signatures rather
+ * than one comparison. Stacked, each gets the full width and reads properly.
+ */
 .sig-preview__panes {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+	grid-template-columns: minmax(0, 1fr);
 	gap: 1rem;
 	margin-top: 1rem;
 }
