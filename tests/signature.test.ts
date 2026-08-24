@@ -367,6 +367,24 @@ checks.push([
 }
 
 const ctaSource = readFileSync('src/pages/api/cta.ts', 'utf8');
+
+/**
+ * The banner must never be served as immutable.
+ *
+ * `ImageResponse` sets its own year-long immutable cache-control and passing
+ * `headers` only appends to it, so every banner was cached for a year and a
+ * settings or campaign change never reached a signature that had been opened
+ * once. The route now re-wraps the response; these guard the wrapping.
+ */
+checks.push([
+	'cta responses are re-wrapped so our cache header wins',
+	/function withCacheHeaders/.test(ctaSource) &&
+		!/return new ImageResponse/.test(ctaSource),
+]);
+checks.push([
+	'the banner is revalidated rather than cached immutably',
+	/must-revalidate/.test(ctaSource) && !/immutable/.test(ctaSource.split('*/').pop() ?? ''),
+]);
 const spacerBase64 = ctaSource.match(/BLANK_PNG = Buffer\.from\(\s*'([^']+)'/)?.[1] ?? '';
 const spacerPng = Buffer.from(spacerBase64, 'base64');
 

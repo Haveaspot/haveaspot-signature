@@ -192,6 +192,27 @@ The real delay before a change reaches inboxes is the CDN cache on the image
 routes — `s-maxage=300`, so up to **5 minutes**. Lower that TTL if campaigns ever
 need to turn over faster; changing the cron frequency would achieve nothing.
 
+**`ImageResponse` will silently override that if you let it.** It sets its own
+`cache-control: public, immutable, no-transform, max-age=31536000`, and passing
+`headers` to it does not replace that value — the two are concatenated, ours
+last:
+
+```
+public, immutable, no-transform, max-age=31536000, public, max-age=0
+```
+
+Caches take the first `max-age` and `immutable` tells them never to revalidate,
+so every banner was cached for a year. A settings change or a new campaign
+reached nobody who had already opened the email — the one thing the tool exists
+to do. It passed every direct test, because a URL fetched for the first time
+always renders fresh; only a reader who had seen the banner before was stuck.
+
+`withCacheHeaders()` in `src/pages/api/cta.ts` copies the body into a plain
+Response so the header is ours outright. Mutating headers on the original does
+not work — `headers.set()` leaves the concatenated value in place. If you ever
+add another image route, wrap it the same way, and check the header on the
+deployed URL rather than trusting the code.
+
 ## Admin area
 
 `/admin` is behind a single shared password in `ADMIN_PASSWORD`. Generate one

@@ -68,11 +68,48 @@ const BLANK_PNG = Buffer.from(
 	'base64',
 );
 
-const CACHE_HEADERS = {
-	// Short cache: campaigns turn over on a schedule, and a stale banner sitting
-	// in Gmail's proxy cache is the failure mode to avoid.
-	'Cache-Control': 'public, max-age=0, s-maxage=300, stale-while-revalidate=60',
-};
+/**
+ * Short cache: campaigns turn over on a schedule, and a stale banner sitting in
+ * a mail client's image cache is the failure mode to avoid.
+ *
+ * `max-age=0, must-revalidate` is aimed at the mail client and Gmail's proxy —
+ * always check back — while `s-maxage` lets Vercel's edge absorb the load for
+ * five minutes. That five minutes is the documented delay before a settings or
+ * campaign change reaches an inbox.
+ */
+const CACHE_CONTROL =
+	'public, max-age=0, must-revalidate, s-maxage=300, stale-while-revalidate=60';
+
+const CACHE_HEADERS = { 'Cache-Control': CACHE_CONTROL };
+
+/**
+ * Re-wrap an `ImageResponse` so our cache headers actually reach the client.
+ *
+ * `ImageResponse` sets its own `cache-control: public, immutable, no-transform,
+ * max-age=31536000`, and passing `headers` does not replace it — the two are
+ * concatenated, ours last, which production was serving as:
+ *
+ *   public, immutable, no-transform, max-age=31536000, public, max-age=0
+ *
+ * Caches take the first `max-age` they see, and `immutable` tells them not to
+ * revalidate at all. Every banner was therefore cached for a **year**: a
+ * settings change or a new campaign never reached a signature whose banner had
+ * been fetched once, which is the one thing this tool exists to do. It passed
+ * every direct test, because a URL fetched for the first time always renders
+ * fresh — only a reader who had already seen the banner was stuck with it.
+ *
+ * The body is copied into a plain Response rather than mutating headers on the
+ * original, because `headers.set()` leaves the concatenated value in place.
+ */
+function withCacheHeaders(image: Response): Response {
+	return new Response(image.body, {
+		status: image.status,
+		headers: {
+			'Content-Type': image.headers.get('content-type') ?? 'image/png',
+			'Cache-Control': CACHE_CONTROL,
+		},
+	});
+}
 
 function blankResponse(): Response {
 	return new Response(new Uint8Array(BLANK_PNG), {
@@ -167,24 +204,26 @@ export async function drawCta(
 	if (section === 'promo' || config.promoOnly) {
 		if (!hasPromo) return blankResponse();
 
-		return new ImageResponse(
-			card(surface, borderColour, [
-				h('img', {
-					src: config.promoImageUrl,
-					style: {
-						width: `${CONTENT_WIDTH}px`,
-						height: `${promoHeight}px`,
-						objectFit: 'cover',
-						borderRadius: `${px(radius.button)}px`,
-					},
-				}),
-			]),
-			{
-				width: WIDTH,
-				height: promoHeight + PADDING * 2 + BORDER * 2,
-				fonts,
-				headers: CACHE_HEADERS,
-			},
+		return withCacheHeaders(
+			new ImageResponse(
+				card(surface, borderColour, [
+					h('img', {
+						src: config.promoImageUrl,
+						style: {
+							width: `${CONTENT_WIDTH}px`,
+							height: `${promoHeight}px`,
+							objectFit: 'cover',
+							borderRadius: `${px(radius.button)}px`,
+						},
+					}),
+				]),
+				{
+					width: WIDTH,
+					height: promoHeight + PADDING * 2 + BORDER * 2,
+					fonts,
+					headers: CACHE_HEADERS,
+				},
+			),
 		);
 	}
 
@@ -202,65 +241,67 @@ export async function drawCta(
 		(hasPromo ? promoHeight + HEADING_GAP : 0) +
 		px(BUTTON_HEIGHT);
 
-	return new ImageResponse(
-		card(surface, borderColour, [
-			h(
-				'div',
-				{ style: { display: 'flex', flexDirection: 'column' } },
-				...lines.map((line) =>
-					h(
-						'div',
-						{
-							style: {
-								fontSize: HEADING_SIZE,
-								lineHeight: `${HEADING_LINE}px`,
-								// Weight 800 — the brand's H1/H2 weight. Heavier than the
-								// card-title 700, on the reading that this line is the
-								// signature's one piece of display type.
-								fontWeight: 800,
-								color: textColour,
+	return withCacheHeaders(
+		new ImageResponse(
+			card(surface, borderColour, [
+				h(
+					'div',
+					{ style: { display: 'flex', flexDirection: 'column' } },
+					...lines.map((line) =>
+						h(
+							'div',
+							{
+								style: {
+									fontSize: HEADING_SIZE,
+									lineHeight: `${HEADING_LINE}px`,
+									// Weight 800 — the brand's H1/H2 weight. Heavier than the
+									// card-title 700, on the reading that this line is the
+									// signature's one piece of display type.
+									fontWeight: 800,
+									color: textColour,
+								},
 							},
-						},
-						line,
+							line,
+						),
 					),
 				),
-			),
-			hasPromo
-				? h('img', {
-						src: config.promoImageUrl,
+				hasPromo
+					? h('img', {
+							src: config.promoImageUrl,
+							style: {
+								width: `${CONTENT_WIDTH}px`,
+								height: `${promoHeight}px`,
+								marginTop: `${HEADING_GAP}px`,
+								objectFit: 'cover',
+								borderRadius: `${px(radius.button)}px`,
+							},
+						})
+					: null,
+				// Brand primary button: 44px tall, 6px radius, ink background, white
+				// label at weight 500.
+				h(
+					'div',
+					{
 						style: {
-							width: `${CONTENT_WIDTH}px`,
-							height: `${promoHeight}px`,
+							display: 'flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							alignSelf: 'flex-start',
 							marginTop: `${HEADING_GAP}px`,
-							objectFit: 'cover',
+							height: `${px(BUTTON_HEIGHT)}px`,
+							padding: `0 ${px(24)}px`,
+							backgroundColor: buttonSurface,
+							color: buttonLabel,
 							borderRadius: `${px(radius.button)}px`,
+							fontSize: BUTTON_FONT,
+							fontWeight: 500,
 						},
-					})
-				: null,
-			// Brand primary button: 44px tall, 6px radius, ink background, white
-			// label at weight 500.
-			h(
-				'div',
-				{
-					style: {
-						display: 'flex',
-						alignItems: 'center',
-						justifyContent: 'center',
-						alignSelf: 'flex-start',
-						marginTop: `${HEADING_GAP}px`,
-						height: `${px(BUTTON_HEIGHT)}px`,
-						padding: `0 ${px(24)}px`,
-						backgroundColor: buttonSurface,
-						color: buttonLabel,
-						borderRadius: `${px(radius.button)}px`,
-						fontSize: BUTTON_FONT,
-						fontWeight: 500,
 					},
-				},
-				config.buttonText,
-			),
-		]),
-		{ width: WIDTH, height, fonts, headers: CACHE_HEADERS },
+					config.buttonText,
+				),
+			]),
+			{ width: WIDTH, height, fonts, headers: CACHE_HEADERS },
+		),
 	);
 }
 
