@@ -214,6 +214,7 @@ const allowedDomain = env('ALLOWED_EMAIL_DOMAIN') ?? 'haveaspot.com';
 					signatureHtml = result.html;
 					// Server-rendered markup from our own trusted endpoint.
 					output.innerHTML = signatureHtml;
+					fit();
 					emptyMsg.hidden = true;
 					copyBtn.disabled = false;
 					darkBtn.disabled = false;
@@ -257,6 +258,33 @@ const allowedDomain = env('ALLOWED_EMAIL_DOMAIN') ?? 'haveaspot.com';
 				copyStatus.hidden = false;
 				setTimeout(() => (copyStatus.hidden = true), 3000);
 			}
+
+			/**
+			 * Scale the preview to fit its column.
+			 *
+			 * The signature carries a 600px floor and cannot reflow — that floor is
+			 * what stops the Gmail app truncating it — so without this the preview
+			 * dictated the page layout and the form was squeezed into whatever width
+			 * was left over.
+			 *
+			 * `zoom` rather than `transform: scale()`: zoom shrinks the space the
+			 * element occupies, so the stage closes up around it. A transform would
+			 * scale the pixels and leave the original height reserved, leaving a tall
+			 * gap beneath the signature.
+			 *
+			 * Measured rather than fixed, because the column reflows with the window.
+			 */
+			const SIGNATURE_WIDTH = 600;
+
+			function fit() {
+				if (!signatureHtml) return;
+				output.style.zoom = '1';
+				// clientWidth excludes the border; take off the stage's own padding.
+				const available = stage.clientWidth - 40;
+				output.style.zoom = String(Math.min(1, available / SIGNATURE_WIDTH));
+			}
+
+			addEventListener('resize', fit);
 
 			form.addEventListener('submit', generate);
 			copyBtn.addEventListener('click', copySignature);

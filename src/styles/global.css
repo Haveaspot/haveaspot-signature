@@ -86,16 +86,16 @@ h3 {
 }
 
 /*
- * The form takes a fixed column and the preview takes the rest.
+ * Near-equal columns, with a little more room for the preview.
  *
- * It was a 1 : 1.4 ratio, which left the preview about 545px of usable width —
- * narrower than the signature, which carries a 600px floor and so cannot shrink
- * to fit. It spilled out of its own bordered box. A fixed 380px form leaves the
- * preview 616px inside its padding, which fits with a little to spare.
+ * The ratio used to be dictated by the signature: it carries a 600px floor and
+ * cannot reflow, so the preview column had to be at least that wide and the
+ * form was squeezed to whatever was left. The preview is now scaled to fit
+ * instead, which frees the layout to be balanced on its own merits.
  */
 .grid {
 	display: grid;
-	grid-template-columns: 380px minmax(0, 1fr);
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
 	gap: 2.5rem;
 	align-items: start;
 }
