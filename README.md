@@ -199,6 +199,26 @@ How it is put together, and why:
   is down.
 - **Logout is POST only**, so another site cannot sign you out with an image tag.
 
+### Deleting click history
+
+The analytics dashboard has a danger zone at the bottom with two deletes: clicks
+older than 90 days, and everything. Both are irreversible — there is no soft
+delete and no archive.
+
+Clearing everything requires typing DELETE, and that is **checked on the server
+as well as in the browser**, so it is not something a resubmitted form can skip.
+
+The retention cutoff is fixed at 90 days rather than following the 7/30/90
+period switch above it. The switch changes what you are looking at; a delete
+that followed it would mean the same button removed a different span depending
+on a control nobody associates with deleting.
+
+Only the `clicks` table is touched. Every click figure elsewhere in the admin —
+a staff member's count, a campaign's performance — is a `count(*)` over that
+table rather than a stored total, so they all follow automatically and there is
+no counter left to drift. Deleting the history does not stop tracking: signatures
+already in inboxes keep recording new clicks.
+
 Astro's built-in origin check rejects cross-site form posts, so the login form
 is CSRF-protected without extra work. (If you ever test it with `curl`, pass
 `-H "Origin: <site url>"` or you will get a confusing 403.)
