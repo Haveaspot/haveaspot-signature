@@ -381,12 +381,30 @@ export function renderSignature(opts: {
 	 *  - The logo sits left with a generous gutter rather than a bordered cell,
 	 *    so the mark has room instead of being boxed in.
 	 *
-	 * The outer table has `max-width` but deliberately **no `min-width`**, and
-	 * that omission is load-bearing. Mobile clients scale a message to fit its
-	 * widest element, so a signature that refuses to go below 600px drags the
-	 * whole email down with it — the sender's own body copy included, rendering
-	 * at roughly 62% on a 375px screen. Without a floor the signature yields and
-	 * everything above it keeps its natural size. Do not add one back.
+	 * The outer table carries **`min-width:600px`**, and it is load-bearing in a
+	 * way that took a while to see.
+	 *
+	 * It was removed once, on the reasoning that mobile clients scale a message
+	 * to fit its widest element — so a 600px floor drags the whole email down,
+	 * the sender's own body copy included, to roughly 62% on a 375px screen.
+	 * That reasoning is correct, and the consequence was worse.
+	 *
+	 * Without a floor the banner is fluid: its displayed height is the viewport
+	 * width times the image's aspect ratio, and the client cannot know that
+	 * ratio until the image has loaded. So it lays out with a placeholder and
+	 * reflows afterwards — and the Gmail app sometimes measures the message body
+	 * before that reflow, cutting everything below the fold it measured. The
+	 * banner appeared open at the bottom and the disclaimer vanished with it,
+	 * intermittently, worse on a second open from cache.
+	 *
+	 * With the floor, the message is laid out at 600px and zoomed to fit as a
+	 * unit. The banner renders at its natural width, so its height needs no
+	 * arithmetic and nothing depends on load order. This is what the WordPress
+	 * original did, and why it never showed this fault.
+	 *
+	 * The banner images still declare no `height` — the plugin's did not either,
+	 * and they cannot, because the height changes with the campaign while the
+	 * pasted markup stays frozen. The floor is what makes that safe.
 	 */
 	return `<style type="text/css">
 	:root { color-scheme: light dark; supported-color-schemes: light dark; }
@@ -394,7 +412,7 @@ export function renderSignature(opts: {
 		${darkRulesCss()}
 	}
 </style>
-<table class="hsig-tbl" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px; background-color:${brand.white}; color:${brand.ink}; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt; font-family:${emailFontStack}; line-height:normal;">
+<table class="hsig-tbl" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px; min-width:600px; background-color:${brand.white}; color:${brand.ink}; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt; font-family:${emailFontStack}; line-height:normal;">
 	<tr>
 		<td class="hsig-td" style="padding:0 0 28px 0; background-color:${brand.white}; border-collapse:collapse; text-align:left;">
 			<table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">

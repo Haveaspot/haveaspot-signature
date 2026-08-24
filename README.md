@@ -239,6 +239,38 @@ exactness in a dashboard.
 If you add another image route, wrap it the same way, and check the header on
 the deployed URL rather than trusting the code.
 
+### The 600px floor on the outer table
+
+`min-width:600px` on `.hsig-tbl` is load-bearing, and it was removed once on
+sound-looking reasoning.
+
+The reasoning: mobile clients scale a message to fit its widest element, so a
+600px floor drags the whole email down — the sender's own body copy included, to
+roughly 62% on a 375px screen. That is true. The consequence of removing it was
+worse.
+
+Without the floor the banner is fluid, so its displayed height is the viewport
+width times the image's aspect ratio — and the client cannot know that ratio
+until the image has loaded. It lays out with a placeholder and reflows
+afterwards, and the Gmail app sometimes measures the message body before the
+reflow, cutting everything below the fold it measured: the bottom of the banner
+and the disclaimer with it. Intermittent, and worse on a second open, because a
+cached image loads at a different point in the layout.
+
+With the floor, the message is laid out at 600px and zoomed to fit as a unit.
+The banner renders at its natural width, its height needs no arithmetic, and
+nothing depends on load order.
+
+**The WordPress original carried this floor**, which is why it never showed the
+fault despite declaring no image height either — and it cannot declare one, in
+that design or this one, because the banner's height changes with the campaign
+while the pasted markup stays frozen. The floor is what makes that safe.
+
+If the mobile scaling ever becomes the bigger complaint, the alternative is a
+fixed-height banner: render the card into a box of one constant height so the
+markup can state a height that never goes stale. That costs extra background
+around short banners.
+
 ### Why the card is inset from the top and bottom of its artwork
 
 The card's border is drawn *into* the image, and it used to sit on the very

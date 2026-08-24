@@ -114,6 +114,23 @@ checks.push([
 ]);
 checks.push(['icon pill shares the pill styling', html.includes('hsig-icon-pill')]);
 
+/**
+ * The 600px floor on the outer table.
+ *
+ * Removed once, because a floor makes mobile clients scale the whole email down
+ * — the sender's own body copy included. True, and the consequence was worse:
+ * without it the banner is fluid, so its height depends on the image's aspect
+ * ratio, which the client only knows once the image has loaded. The Gmail app
+ * sometimes measured the message before that reflow and cut the bottom of the
+ * banner along with the disclaimer beneath it.
+ *
+ * The WordPress original carried this floor and never showed the fault.
+ */
+checks.push([
+	'the outer table keeps its 600px floor',
+	/class="hsig-tbl"[^>]*min-width:600px/.test(html),
+]);
+
 // Regression: the icons used to be inline images spaced with `margin-right`,
 // with exactly zero slack inside the pill, so any mobile client that scaled the
 // message down wrapped the last icon onto a second line. One cell per icon
