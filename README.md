@@ -216,13 +216,25 @@ image through one — to store the response, while `must-revalidate` without an
 ETag or Last-Modified gives that cache nothing to revalidate against. Only
 `no-store` says do not keep a copy.
 
-**The cost is a render per open**, since nothing caches, Vercel's edge included.
-That is the trade the plugin made too, and it is the right way round: a banner
-that is occasionally slow beats a banner that is permanently wrong. If
-invocation volume ever justifies it, the fix is a cache on *our* side — the
-plugin used a five-minute transient keyed on a version bumped whenever settings
-changed — never a cache in the reader's mail client, which we cannot reach to
-clear.
+**Vercel's edge caches it for 60 seconds; the reader never does.** This is the
+other half of the plugin's design, which paired `no-store` to the client with a
+five-minute transient on its own server. Without it every open paid for a cold
+render — about 1.2s before the first byte, since the promo art is fetched from
+Blob storage and the card rasterised from scratch.
+
+`Vercel-CDN-Cache-Control: max-age=60` is read by Vercel's edge and **stripped
+before the response reaches the reader**, so it cannot bring the stale banner
+back: the mail client still sees `no-store` and still asks every time, it just
+gets an answer from the edge. Do **not** use plain `s-maxage` for this — the
+client sees that too.
+
+Sixty seconds rather than five minutes: long enough that repeat opens are free,
+short enough that a settings change still lands almost at once.
+
+The cost is impression precision. When the edge answers, the function does not
+run and the open is not counted; views are already documented as a floor and
+this lowers it a little further. Speed in an inbox was judged worth more than
+exactness in a dashboard.
 
 If you add another image route, wrap it the same way, and check the header on
 the deployed URL rather than trusting the code.

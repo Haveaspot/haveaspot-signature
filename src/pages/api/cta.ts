@@ -96,6 +96,31 @@ const CACHE_HEADERS = {
 	'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
 	Pragma: 'no-cache',
 	Expires: 'Wed, 11 Jan 1984 05:00:00 GMT',
+
+	/**
+	 * Cache on our side, never on theirs — the other half of the plugin's design.
+	 *
+	 * The plugin paired `no-store` to the client with a five-minute transient on
+	 * its own server, so it answered instantly without redrawing. Dropping that
+	 * half left every open paying for a full render: ~1.2s before the first byte,
+	 * because the promo art is fetched from Blob storage and the card rasterised
+	 * from scratch each time.
+	 *
+	 * `Vercel-CDN-Cache-Control` is read by Vercel's edge and **stripped before
+	 * the response reaches the reader**, so it cannot reintroduce the stale
+	 * banner bug: the mail client still sees `no-store` and still asks every
+	 * time. It just gets an answer from the edge rather than a cold render.
+	 *
+	 * Sixty seconds, not five minutes. Long enough that repeat opens are free,
+	 * short enough that a settings change or a campaign still lands almost at
+	 * once — the property that took three attempts to get right.
+	 *
+	 * The cost is impression precision: when the edge answers, this function
+	 * does not run and the open is not counted. Views are already documented as
+	 * a floor; this lowers the floor a little further in exchange for a banner
+	 * that appears immediately.
+	 */
+	'Vercel-CDN-Cache-Control': 'max-age=60',
 };
 
 /** JPEG quality. 85 is invisible on a photograph at this size. */

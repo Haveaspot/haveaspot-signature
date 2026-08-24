@@ -10,8 +10,12 @@ import { sql } from './db';
  *
  *  - Clients that block remote images produce no request at all, and many
  *    people never load them.
+ *  - The banner is cached at Vercel's edge for 60 seconds so it appears
+ *    instantly rather than after a cold render. When the edge answers, this
+ *    code does not run, so opens close together are counted once.
  *  - A proxy that dedupes identical URLs between recipients can still collapse
- *    two opens into one fetch, even though the banner is sent uncacheable.
+ *    two opens into one fetch, even though the banner is sent uncacheable to
+ *    the client.
  *
  * Both push the same way: impressions under-report, so any click-through rate
  * derived from them over-reports. The dashboard labels it accordingly. Trends

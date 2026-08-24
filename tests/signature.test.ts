@@ -394,6 +394,17 @@ checks.push([
 		'HTTP/1.0 proxies are covered too',
 		/Pragma/.test(cacheBlock) && /Expires/.test(cacheBlock),
 	]);
+	/**
+	 * The edge cache is what makes the banner appear instantly. It is safe only
+	 * because Vercel strips this header before the response reaches the reader —
+	 * a plain `s-maxage` here would let a mail client cache it and bring the
+	 * stale-banner bug straight back.
+	 */
+	checks.push([
+		'the edge caches, briefly',
+		/'Vercel-CDN-Cache-Control': 'max-age=60'/.test(cacheBlock),
+	]);
+	checks.push(['no s-maxage, which the client would also see', !/s-maxage/.test(cacheBlock)]);
 }
 
 /**
