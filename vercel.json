@@ -5,5 +5,17 @@
       "path": "/api/cron/expire-campaigns",
       "schedule": "0 3 * * *"
     }
+  ],
+  "headers": [
+    {
+      "//": "Icons and logo artwork are fixed files with fixed names. Vercel's default for unhashed static assets is max-age=0, must-revalidate, which meant every open of every email re-fetched all four icons and the logo through Gmail's image proxy -- six uncacheable round trips each time, and one of them intermittently failed to arrive. Thirty days: long enough that a reader fetches them once, short enough that replacing the artwork does not need a new filename to take effect.",
+      "source": "/(icons|logo)/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=2592000"
+        }
+      ]
+    }
   ]
 }
