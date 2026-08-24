@@ -189,6 +189,39 @@ CREATE INDEX IF NOT EXISTS clicks_sender_idx ON clicks (sender_email);
 CREATE INDEX IF NOT EXISTS clicks_campaign_idx ON clicks (campaign_id);
 
 -- -----------------------------------------------------------------------------
+-- Banner impressions
+--
+-- Aggregated, not one row per view. A click is a rare event worth keeping in
+-- full; a banner render happens every time anyone opens any email from anyone,
+-- which is orders of magnitude more traffic. Storing that raw would put an
+-- insert on the hot path of an image route that must stay fast, and grow a
+-- table nobody would ever query row by row.
+--
+-- One row per person per campaign per day, incremented in place. That is the
+-- grain every question actually needs: click-through rate, and the trend over
+-- time.
+--
+-- What this counts is banner *fetches that reached the server*, which is a
+-- floor rather than a true count of opens — see the note in src/lib/
+-- impressions.ts. The dashboard says so wherever the number is shown.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS impressions (
+  day           date NOT NULL DEFAULT current_date,
+  sender_email  text NOT NULL,
+  campaign_id   integer REFERENCES campaigns(id) ON DELETE SET NULL,
+  views         integer NOT NULL DEFAULT 0
+);
+
+-- COALESCE rather than a plain unique constraint: campaign_id is NULL for the
+-- default banner, and Postgres treats NULLs as distinct in a unique index, so
+-- every default-banner view would insert a new row instead of incrementing.
+-- ON CONFLICT infers this same expression.
+CREATE UNIQUE INDEX IF NOT EXISTS impressions_key_idx
+  ON impressions (day, sender_email, COALESCE(campaign_id, 0));
+
+CREATE INDEX IF NOT EXISTS impressions_day_idx ON impressions (day DESC);
+
+-- -----------------------------------------------------------------------------
 -- Migrations
 --
 -- Additive and idempotent, so this file stays runnable end to end against both

@@ -203,6 +203,29 @@ BEGIN
 	CREATE INDEX IF NOT EXISTS clicks_campaign_idx ON clicks (campaign_id);
 
 	-- -----------------------------------------------------------------------------
+	-- Banner impressions
+	--
+	-- Aggregated, not one row per view: a banner render happens every time anyone
+	-- opens any email, which is far more traffic than clicks. One row per person
+	-- per campaign per day, incremented in place.
+	--
+	-- The COALESCE index is load-bearing. campaign_id is NULL for the default
+	-- banner, and Postgres treats NULLs as distinct in a unique index, so without
+	-- it every default-banner view would insert a new row instead of incrementing.
+	-- -----------------------------------------------------------------------------
+	CREATE TABLE IF NOT EXISTS impressions (
+	  day           date NOT NULL DEFAULT current_date,
+	  sender_email  text NOT NULL,
+	  campaign_id   integer REFERENCES campaigns(id) ON DELETE SET NULL,
+	  views         integer NOT NULL DEFAULT 0
+	);
+
+	CREATE UNIQUE INDEX IF NOT EXISTS impressions_key_idx
+	  ON impressions (day, sender_email, COALESCE(campaign_id, 0));
+
+	CREATE INDEX IF NOT EXISTS impressions_day_idx ON impressions (day DESC);
+
+	-- -----------------------------------------------------------------------------
 	-- Migrations
 	--
 	-- Additive and idempotent, so this file stays runnable end to end against both

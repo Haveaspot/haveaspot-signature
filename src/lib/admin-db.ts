@@ -450,6 +450,8 @@ export interface CampaignClicks {
 	name: string;
 	clicks: number;
 	visitors: number;
+	/** Banner fetches that reached the server — a floor, not a true open count. */
+	views: number;
 }
 
 /**
@@ -458,17 +460,60 @@ export interface CampaignClicks {
  * same axis.
  */
 export async function analyticsCampaigns(days: number): Promise<CampaignClicks[]> {
+	/**
+	 * Clicks and impressions are counted separately and then stitched together,
+	 * rather than joined, because they live at different grains — one row per
+	 * click against one aggregated row per person per campaign per day.
+	 *
+	 * The union of both key sets is what drives the rows, so a banner with
+	 * impressions and no clicks still appears. That is the case most worth
+	 * seeing: a campaign nobody is clicking looks identical to a campaign nobody
+	 * has been shown if you only ever list the things that were clicked.
+	 *
+	 * `IS NOT DISTINCT FROM` rather than `=` throughout: campaign_id is NULL for
+	 * the default banner, and a plain equality join drops NULL against NULL.
+	 */
 	return sql<CampaignClicks[]>`
+		WITH imp AS (
+			SELECT campaign_id, sum(views)::int AS views
+			FROM impressions
+			WHERE day > current_date - ${days}::int
+			GROUP BY campaign_id
+		),
+		clk AS (
+			SELECT campaign_id,
+			       count(*)::int AS clicks,
+			       count(DISTINCT visitor_hash)::int AS visitors
+			FROM clicks
+			WHERE asset_type IN ('cta_campaign', 'cta_default')
+			  AND clicked_at > now() - (${days} || ' days')::interval
+			GROUP BY campaign_id
+		),
+		keys AS (
+			SELECT campaign_id FROM imp
+			UNION
+			SELECT campaign_id FROM clk
+		)
 		SELECT COALESCE(ca.name, 'Default banner') AS name,
-		       count(*)::int AS clicks,
-		       count(DISTINCT c.visitor_hash)::int AS visitors
-		FROM clicks c
-		LEFT JOIN campaigns ca ON ca.id = c.campaign_id
-		WHERE c.asset_type IN ('cta_campaign', 'cta_default')
-		  AND c.clicked_at > now() - (${days} || ' days')::interval
-		GROUP BY ca.name
-		ORDER BY clicks DESC
+		       COALESCE(clk.clicks, 0)::int   AS clicks,
+		       COALESCE(clk.visitors, 0)::int AS visitors,
+		       COALESCE(imp.views, 0)::int    AS views
+		FROM keys k
+		LEFT JOIN campaigns ca ON ca.id = k.campaign_id
+		LEFT JOIN imp ON imp.campaign_id IS NOT DISTINCT FROM k.campaign_id
+		LEFT JOIN clk ON clk.campaign_id IS NOT DISTINCT FROM k.campaign_id
+		ORDER BY views DESC, clicks DESC
 	`;
+}
+
+/** Total banner views in the window — the denominator for click-through rate. */
+export async function impressionsTotal(days: number): Promise<number> {
+	const rows = await sql<{ n: number }[]>`
+		SELECT COALESCE(sum(views), 0)::int AS n
+		FROM impressions
+		WHERE day > current_date - ${days}::int
+	`;
+	return rows[0]?.n ?? 0;
 }
 
 /**
@@ -483,6 +528,22 @@ export async function totalClicks(): Promise<number> {
 	return rows[0]?.n ?? 0;
 }
 
+/** Total impressions ever recorded, for the same reason as `totalClicks`. */
+export async function totalImpressions(): Promise<number> {
+	const rows = await sql<{ n: number }[]>`SELECT COALESCE(sum(views), 0)::int AS n FROM impressions`;
+	return rows[0]?.n ?? 0;
+}
+
+/** Impressions older than the cutoff, matching `clicksOlderThan`. */
+export async function impressionsOlderThan(days: number): Promise<number> {
+	const rows = await sql<{ n: number }[]>`
+		SELECT COALESCE(sum(views), 0)::int AS n
+		FROM impressions
+		WHERE day <= current_date - ${days}::int
+	`;
+	return rows[0]?.n ?? 0;
+}
+
 /** Clicks older than the cutoff — the count the retention delete would remove. */
 export async function clicksOlderThan(days: number): Promise<number> {
 	const rows = await sql<{ n: number }[]>`
@@ -494,32 +555,60 @@ export async function clicksOlderThan(days: number): Promise<number> {
 }
 
 /**
- * Delete click history. Irreversible — there is no soft delete and no archive.
+ * Delete analytics history. Irreversible — there is no soft delete and no
+ * archive.
  *
  * Two scopes, deliberately not one with a number attached: 'all' is the
- * clear-the-decks case (test clicks before a rollout), 'older' is routine
+ * clear-the-decks case (test data before a rollout), 'older' is routine
  * retention trimming. Anything more flexible would be a way to delete a
  * surprising subset by mistake.
  *
- * Only the `clicks` table is touched. Every click figure elsewhere in the admin
- * — a staff member's count, a campaign's performance — is a `count(*)` over
- * this table rather than a stored total, so they all follow automatically and
- * there is no counter left to drift out of step.
+ * **Clicks and impressions go together.** Deleting one and not the other would
+ * leave a click-through rate computed from a numerator and a denominator that
+ * cover different spans of time — a number that looks fine and is wrong, which
+ * is worse than no number.
  *
- * Returns the number of rows removed so the caller can report what happened
- * rather than guessing from the count it showed beforehand.
+ * No other table is touched. Every click figure elsewhere in the admin — a
+ * staff member's count, a campaign's performance — is a `count(*)` over these
+ * rather than a stored total, so they all follow automatically and there is no
+ * counter left to drift out of step.
+ *
+ * Returns what was removed, so the caller can report what happened rather than
+ * guessing from the counts it showed beforehand.
  */
-export async function deleteClicks(
+export interface DeletedAnalytics {
+	clicks: number;
+	impressions: number;
+}
+
+export async function deleteAnalytics(
 	scope: 'all' | 'older',
 	days = 90,
-): Promise<number> {
-	const rows =
-		scope === 'all'
-			? await sql<{ id: number }[]>`DELETE FROM clicks RETURNING id`
-			: await sql<{ id: number }[]>`
-					DELETE FROM clicks
-					WHERE clicked_at <= now() - (${days} || ' days')::interval
-					RETURNING id
-				`;
-	return rows.length;
+): Promise<DeletedAnalytics> {
+	if (scope === 'all') {
+		const [clicks, impressions] = await Promise.all([
+			sql<{ id: number }[]>`DELETE FROM clicks RETURNING id`,
+			sql<{ views: number }[]>`DELETE FROM impressions RETURNING views`,
+		]);
+		return { clicks: clicks.length, impressions: sumViews(impressions) };
+	}
+
+	const [clicks, impressions] = await Promise.all([
+		sql<{ id: number }[]>`
+			DELETE FROM clicks
+			WHERE clicked_at <= now() - (${days} || ' days')::interval
+			RETURNING id
+		`,
+		sql<{ views: number }[]>`
+			DELETE FROM impressions
+			WHERE day <= current_date - ${days}::int
+			RETURNING views
+		`,
+	]);
+	return { clicks: clicks.length, impressions: sumViews(impressions) };
+}
+
+/** Impression rows are aggregated, so the row count is not the view count. */
+function sumViews(rows: { views: number }[]): number {
+	return rows.reduce((total, row) => total + row.views, 0);
 }

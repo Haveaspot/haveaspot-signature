@@ -199,11 +199,48 @@ How it is put together, and why:
   is down.
 - **Logout is POST only**, so another site cannot sign you out with an image tag.
 
-### Deleting click history
+### Banner impressions and click-through rate
 
-The analytics dashboard has a danger zone at the bottom with two deletes: clicks
-older than 90 days, and everything. Both are irreversible — there is no soft
-delete and no archive.
+Every banner render is an image request to `/api/cta`, so the server sees it.
+Impressions are counted there and the dashboard divides banner clicks by them.
+
+**Only `theme=light` is counted.** Every signature carries one light banner and,
+for everything except Outlook, a hidden dark one beside it that most clients
+fetch too. Counting both would double the figure for some clients and not
+others; counting light gives one impression per open everywhere.
+
+**The count is aggregated on the way in** — one row per person per campaign per
+day, incremented in place. A click is rare and worth keeping in full; a banner
+render happens every time anyone opens any email from anyone. Storing that raw
+would put a growing insert on the hot path of an image route that has to stay
+fast, at a grain nobody would query.
+
+**It is a floor, not a true count of opens.** The image is CDN-cached for five
+minutes, and Gmail serves it through its own cache keyed on the URL — which is
+identical for every recipient of a given sender. Clients that block images
+produce nothing at all. So impressions under-report and any rate derived from
+them over-reports.
+
+This is why **a rate over 100% is possible and is not a bug**: one cached view
+can stand for many readers, any number of whom can click. The dashboard shows
+the real number, flags it, and explains it on hover rather than capping it —
+capping would turn a signal about caching into a plausible-looking figure.
+
+Fixing it properly would mean making the banner uncacheable, putting every open
+on the render path and losing the property that makes campaigns cheap. Not
+worth it. Read the rate against itself over time, not against a published
+industry benchmark.
+
+### Deleting analytics history
+
+The analytics dashboard has a danger zone at the bottom with two deletes:
+history older than 90 days, and everything. Both are irreversible — there is no
+soft delete and no archive.
+
+**Clicks and impressions are deleted together.** Removing one without the other
+would leave a click-through rate whose numerator and denominator cover different
+spans of time — a number that looks fine and is wrong, which is worse than no
+number at all.
 
 Clearing everything requires typing DELETE, and that is **checked on the server
 as well as in the browser**, so it is not something a resubmitted form can skip.
@@ -213,11 +250,11 @@ period switch above it. The switch changes what you are looking at; a delete
 that followed it would mean the same button removed a different span depending
 on a control nobody associates with deleting.
 
-Only the `clicks` table is touched. Every click figure elsewhere in the admin —
-a staff member's count, a campaign's performance — is a `count(*)` over that
-table rather than a stored total, so they all follow automatically and there is
-no counter left to drift. Deleting the history does not stop tracking: signatures
-already in inboxes keep recording new clicks.
+No other table is touched. Every click figure elsewhere in the admin — a staff
+member's count, a campaign's performance — is a `count(*)` over these rather
+than a stored total, so they all follow automatically and there is no counter
+left to drift. Deleting the history does not stop tracking: signatures already
+in inboxes keep recording.
 
 Astro's built-in origin check rejects cross-site form posts, so the login form
 is CSRF-protected without extra work. (If you ever test it with `curl`, pass

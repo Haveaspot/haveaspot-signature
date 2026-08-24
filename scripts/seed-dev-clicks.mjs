@@ -138,7 +138,43 @@ try {
 
 	await sql`INSERT INTO clicks ${sql(rows)}`;
 	console.log(`Inserted ${rows.length} sample clicks across ${DAYS} days.`);
+
+	/**
+	 * Impressions to divide those clicks by.
+	 *
+	 * Seeded from the click rows rather than independently, so the click-through
+	 * rate lands somewhere believable. Without this the dashboard shows clicks
+	 * over almost no views and reports a rate in the thousands — technically
+	 * correct, and useless for judging whether the panel reads well.
+	 *
+	 * Roughly 3-6% of views turn into a click, which is the range a real banner
+	 * tends to sit in.
+	 */
+	const impressions = new Map();
+	for (const row of rows) {
+		if (!row.asset_type.startsWith('cta_')) continue;
+		const day = row.clicked_at.toISOString().slice(0, 10);
+		const key = `${day}|${row.sender_email}|${row.campaign_id ?? ''}`;
+		const views = 20 + Math.floor(Math.random() * 15);
+		const existing = impressions.get(key);
+		if (existing) existing.views += views;
+		else
+			impressions.set(key, {
+				day,
+				sender_email: row.sender_email,
+				campaign_id: row.campaign_id,
+				views,
+			});
+	}
+
+	if (impressions.size) {
+		await sql`INSERT INTO impressions ${sql([...impressions.values()])}`;
+		const total = [...impressions.values()].reduce((n, r) => n + r.views, 0);
+		console.log(`Inserted ${total} sample banner views across ${impressions.size} rows.`);
+	}
+
 	console.log("Remove later with: DELETE FROM clicks WHERE visitor_hash LIKE 'seed-%';");
+	console.log('                   DELETE FROM impressions;  -- dev branch only');
 } catch (error) {
 	console.error('Failed:', error.message);
 	process.exitCode = 1;

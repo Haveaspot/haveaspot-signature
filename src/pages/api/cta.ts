@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { ImageResponse } from '@vercel/og';
 import { resolveCtaConfig } from '../../lib/campaigns';
+import { recordImpression } from '../../lib/impressions';
 import type { CtaConfig } from '../../lib/campaigns';
 import {
 	brand,
@@ -88,6 +89,32 @@ export const GET: APIRoute = async ({ url }) => {
 
 	try {
 		const config = await resolveCtaConfig(email);
+
+		/**
+		 * Count the impression.
+		 *
+		 * Light only. Every signature contains exactly one `theme=light` banner
+		 * and — for everything except Outlook — a hidden `theme=dark` one beside
+		 * it, which most clients fetch too. Counting both would double the figure
+		 * for some clients and not others; counting light gives one impression
+		 * per open everywhere.
+		 *
+		 * Skipped when the banner is suppressed, because a blank spacer is not an
+		 * impression of anything.
+		 *
+		 * Awaited, not fire-and-forget: a serverless function can be frozen the
+		 * moment the response is returned, which drops the write. Wrapped in its
+		 * own catch because analytics must never cost anyone their banner — the
+		 * image is already in an inbox and cannot be corrected after the fact.
+		 */
+		if (theme === 'light' && !config.disableCta) {
+			try {
+				await recordImpression(email, config.campaign?.id ?? null);
+			} catch (error) {
+				console.error('[cta] impression not recorded', error);
+			}
+		}
+
 		return await drawCta(config, section, theme);
 	} catch (error) {
 		// Never surface an error status here. These URLs are embedded in emails

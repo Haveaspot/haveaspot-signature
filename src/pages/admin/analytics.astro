@@ -7,9 +7,12 @@ import {
 	analyticsBreakdown,
 	analyticsTopStaff,
 	analyticsCampaigns,
+	impressionsTotal,
 	totalClicks,
+	totalImpressions,
 	clicksOlderThan,
-	deleteClicks,
+	impressionsOlderThan,
+	deleteAnalytics,
 } from '../../lib/admin-db';
 
 export const prerender = false;
@@ -47,14 +50,15 @@ if (Astro.request.method === 'POST') {
 		// Typed confirmation, checked server-side as well as in the browser, so
 		// the guard is not something a stray double-submit can skip.
 		if (scope === 'all' && String(form.get('confirm')).trim().toUpperCase() !== 'DELETE') {
-			throw new Error('Type DELETE to confirm clearing all click history.');
+			throw new Error('Type DELETE to confirm clearing all analytics history.');
 		}
 
-		const removed = await deleteClicks(scope, RETENTION_DAYS);
+		const removed = await deleteAnalytics(scope, RETENTION_DAYS);
+		const n = (value: number) => value.toLocaleString('en-GB');
 		notice =
-			removed === 0
-				? 'Nothing to delete — there were no matching clicks.'
-				: `Deleted ${removed.toLocaleString('en-GB')} click${removed === 1 ? '' : 's'}.`;
+			removed.clicks === 0 && removed.impressions === 0
+				? 'Nothing to delete — there was no matching history.'
+				: `Deleted ${n(removed.clicks)} click${removed.clicks === 1 ? '' : 's'} and ${n(removed.impressions)} impression${removed.impressions === 1 ? '' : 's'}.`;
 	} catch (err) {
 		deleteError = err instanceof Error ? err.message : String(err);
 	}
@@ -69,14 +73,28 @@ let data: {
 	countries: Awaited<ReturnType<typeof analyticsBreakdown>>;
 	staff: Awaited<ReturnType<typeof analyticsTopStaff>>;
 	campaigns: Awaited<ReturnType<typeof analyticsCampaigns>>;
+	views: number;
 	total: number;
 	stale: number;
 } | null = null;
 let loadError = '';
 
 try {
-	const [summary, daily, assets, clients, devices, countries, staff, campaigns, total, stale] =
-		await Promise.all([
+	const [
+		summary,
+		daily,
+		assets,
+		clients,
+		devices,
+		countries,
+		staff,
+		campaigns,
+		views,
+		totalClickRows,
+		totalViews,
+		staleClicks,
+		staleViews,
+	] = await Promise.all([
 			analyticsSummary(days),
 			analyticsDaily(days),
 			analyticsBreakdown('asset_type', days),
@@ -85,10 +103,27 @@ try {
 			analyticsBreakdown('country_code', days),
 			analyticsTopStaff(days),
 			analyticsCampaigns(days),
+			impressionsTotal(days),
 			totalClicks(),
+			totalImpressions(),
 			clicksOlderThan(RETENTION_DAYS),
+			impressionsOlderThan(RETENTION_DAYS),
 		]);
-	data = { summary, daily, assets, clients, devices, countries, staff, campaigns, total, stale };
+	// The delete controls talk about history as one thing, so the two tables are
+	// summed for their counts rather than reported separately.
+	data = {
+		summary,
+		daily,
+		assets,
+		clients,
+		devices,
+		countries,
+		staff,
+		campaigns,
+		views,
+		total: totalClickRows + totalViews,
+		stale: staleClicks + staleViews,
+	};
 } catch (err) {
 	loadError = err instanceof Error ? err.message : String(err);
 }
@@ -102,6 +137,17 @@ const ASSET_LABELS: Record<string, string> = {
 	mail: 'Mail icon',
 	linkedin: 'LinkedIn icon',
 };
+
+/**
+ * Banner clicks only — not every click in the window.
+ *
+ * The rate has to divide banner clicks by banner views. Using the headline
+ * click total would fold in icon and save-contact clicks, which have no
+ * impressions behind them, and the tile would disagree with every row of the
+ * banner table underneath it.
+ */
+const bannerClicks = (data?.campaigns ?? []).reduce((n, c) => n + c.clicks, 0);
+const bannerViews = (data?.campaigns ?? []).reduce((n, c) => n + c.views, 0);
 
 const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
 
@@ -117,6 +163,28 @@ function countryName(code: string): string {
 function share(n: number, total: number): number {
 	return total === 0 ? 0 : Math.round((n / total) * 100);
 }
+
+/**
+ * Click-through rate, to one decimal place.
+ *
+ * Returns null rather than 0% when there are no views to divide by: a banner
+ * nobody has been shown has no rate, and printing 0% would read as "shown and
+ * ignored", which is a different and much worse story.
+ *
+ * A rate over 100% is possible and is not a bug. Gmail serves the banner from
+ * its own cache shared across recipients, so one recorded view can cover many
+ * people, any number of whom can click. Rather than capping the number — which
+ * would quietly turn a signal about caching into a plausible-looking figure —
+ * it is shown as it is, flagged, and explained on hover.
+ */
+function ctr(clicks: number, views: number): { label: string; overflowed: boolean } | null {
+	if (views === 0) return null;
+	const rate = (clicks / views) * 100;
+	return { label: `${rate.toFixed(1)}%`, overflowed: rate > 100 };
+}
+
+const OVERFLOW_HINT =
+	'More clicks than recorded views. Gmail serves the banner from a cache shared between recipients, so one view can stand for many people — the view count is a floor, which pushes this rate up.';
 ---
 
 <AdminLayout
@@ -147,8 +215,25 @@ function share(n: number, total: number): number {
 
 				<div class="stat-grid">
 					<div class="stat">
+						<span class="stat-value">{data.views.toLocaleString('en-GB')}</span>
+						<span class="stat-label">Banner views</span>
+					</div>
+					<div class="stat">
 						<span class="stat-value">{data.summary.clicks}</span>
 						<span class="stat-label">Clicks</span>
+					</div>
+					<div class="stat">
+						{(() => {
+							const rate = ctr(bannerClicks, bannerViews);
+							if (!rate) return <span class="stat-value">—</span>;
+							return (
+								<span class="stat-value" title={rate.overflowed ? OVERFLOW_HINT : undefined}>
+									{rate.label}
+									{rate.overflowed && <span class="stat-flag">?</span>}
+								</span>
+							);
+						})()}
+						<span class="stat-label">Banner click-through</span>
 					</div>
 					<div class="stat">
 						<span class="stat-value">{data.summary.visitors}</span>
@@ -160,7 +245,7 @@ function share(n: number, total: number): number {
 					</div>
 				</div>
 
-				{data.summary.clicks === 0 ? (
+				{data.summary.clicks === 0 && data.views === 0 ? (
 					<div class="table-wrap">
 						<p class="empty">
 							No clicks in the last {days} days. Clicks are recorded when someone follows a
@@ -200,7 +285,7 @@ function share(n: number, total: number): number {
 								<h2>Banner performance</h2>
 								{data.campaigns.length === 0 ? (
 									<div class="table-wrap">
-										<p class="empty">No banner clicks yet.</p>
+										<p class="empty">No banner activity yet.</p>
 									</div>
 								) : (
 									<div class="table-wrap">
@@ -208,8 +293,9 @@ function share(n: number, total: number): number {
 											<thead>
 												<tr>
 													<th>Banner</th>
+													<th>Views</th>
 													<th>Clicks</th>
-													<th>Visitors</th>
+													<th>Rate</th>
 												</tr>
 											</thead>
 											<tbody>
@@ -217,8 +303,20 @@ function share(n: number, total: number): number {
 													data.campaigns.map((c) => (
 														<tr>
 															<td>{c.name}</td>
+															<td class="nowrap">{c.views.toLocaleString('en-GB')}</td>
 															<td class="nowrap">{c.clicks}</td>
-															<td class="nowrap">{c.visitors}</td>
+															<td class="nowrap">
+																{(() => {
+																	const rate = ctr(c.clicks, c.views);
+																	if (!rate) return <span class="muted">—</span>;
+																	return (
+																		<span title={rate.overflowed ? OVERFLOW_HINT : undefined}>
+																			{rate.label}
+																			{rate.overflowed && <span class="stat-flag">?</span>}
+																		</span>
+																	);
+																})()}
+															</td>
 														</tr>
 													))
 												}
@@ -339,41 +437,50 @@ function share(n: number, total: number): number {
 					Visitors are counted by a salted hash of the IP address — enough to tell ten opens by
 					one person from ten people, without storing anything identifying. Dates are UK local.
 				</p>
+				<p class="footnote">
+					<strong>Banner views are a floor, not a true count of opens.</strong> The banner image
+					is cached for five minutes, and Gmail serves it through its own cache shared across
+					recipients, so some opens never reach us. Views therefore under-count and the rate
+					above over-states. Compare it against itself over time — the caching stays roughly
+					constant, so a rate that doubles really has doubled — rather than against a published
+					industry figure.
+				</p>
 
 				<section class="danger-zone">
-					<h2>Delete click history</h2>
+					<h2>Delete analytics history</h2>
 					<p class="footnote" style="margin-top:0">
-						There is no undo and no backup. Deleting clicks also empties the click counts
-						shown against staff and campaigns, because those are counted from this same
-						history rather than stored separately. Signatures already in people's inboxes
-						keep working and keep recording new clicks — this clears the record, not the
-						tracking.
+						There is no undo and no backup. Clicks and banner views go together — deleting
+						one without the other would leave a click-through rate whose top and bottom
+						halves cover different spans of time. It also empties the click counts shown
+						against staff and campaigns, because those are counted from this same history
+						rather than stored separately. Signatures already in people's inboxes keep
+						working and keep recording — this clears the record, not the tracking.
 					</p>
 
 					<div class="danger-action">
 						<div>
-							<strong>Clear clicks older than {RETENTION_DAYS} days</strong>
+							<strong>Clear history older than {RETENTION_DAYS} days</strong>
 							<span class="hint">
 								{data.stale === 0
 									? 'Nothing is older than that yet.'
-									: `${data.stale.toLocaleString('en-GB')} of ${data.total.toLocaleString('en-GB')} clicks would go. Recent activity is kept.`}
+									: `${data.stale.toLocaleString('en-GB')} of ${data.total.toLocaleString('en-GB')} records would go. Recent activity is kept.`}
 							</span>
 						</div>
-						<form method="POST" onsubmit={`return confirm('Delete ${data.stale} click${data.stale === 1 ? '' : 's'} older than ${RETENTION_DAYS} days? This cannot be undone.')`}>
+						<form method="POST" onsubmit={`return confirm('Delete ${data.stale} record${data.stale === 1 ? '' : 's'} older than ${RETENTION_DAYS} days? This cannot be undone.')`}>
 							<input type="hidden" name="scope" value="older" />
 							<button type="submit" class="btn btn--secondary btn--small" disabled={data.stale === 0}>
-								Delete old clicks
+								Delete old records
 							</button>
 						</form>
 					</div>
 
 					<div class="danger-action">
 						<div>
-							<strong>Clear all click history</strong>
+							<strong>Clear all analytics history</strong>
 							<span class="hint">
 								{data.total === 0
-									? 'There is no click history to delete.'
-									: `All ${data.total.toLocaleString('en-GB')} clicks ever recorded, not just the ${days} days shown above.`}
+									? 'There is no history to delete.'
+									: `All ${data.total.toLocaleString('en-GB')} records ever kept — clicks and banner views — not just the ${days} days shown above.`}
 							</span>
 						</div>
 						<form method="POST" class="danger-confirm">
