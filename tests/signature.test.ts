@@ -3,6 +3,8 @@ import {
 	renderSignature,
 	ICON_COUNT,
 	ICON_SIZE,
+	ICON_GAP,
+	ICON_PILL_PADDING_X,
 	ICON_PILL_WIDTH,
 	LOGO_PILL_WIDTH,
 	PILL_HEIGHT,
@@ -132,6 +134,15 @@ checks.push([
 checks.push([
 	'the icon pill refuses to wrap',
 	/hsig-icon-pill[^>]*white-space:nowrap/.test(html),
+]);
+
+// The pill's total width is fixed by the logo pill, so the only slack the icon
+// row can have is padding it can give back under a client's rescaling. Keeping
+// the padding wider than the gaps is what reserves that slack; putting the
+// width back into the gaps would look identical and wrap again on mobile.
+checks.push([
+	`padding (${ICON_PILL_PADDING_X}) leaves slack over the gaps (${ICON_GAP})`,
+	ICON_PILL_PADDING_X > ICON_GAP,
 ]);
 
 // The right column mirrors the left column's 44 / 10 / 44 bands so the name and

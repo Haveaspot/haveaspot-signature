@@ -72,14 +72,22 @@ function linkify(escaped: string): string {
  * Icon pill geometry.
  *
  * Chosen so the icon pill comes out exactly as wide as the logo pill (148px):
- * four 20px icons with three 12px gaps is 116px, and 15px of padding either
+ * four 20px icons with three 10px gaps is 110px, and 18px of padding either
  * side plus the 1px borders makes 148. Adjust the icon count or spacing and
  * this padding is what has to change to keep the two pills aligned.
+ *
+ * The split between gap and padding matters as much as the total. The gaps
+ * were 12px and the padding 15px, which came to the same 148 but left the
+ * icon row filling every available pixel. Mobile clients rescale a message to
+ * fit the screen, and they do not round images and CSS lengths the same way,
+ * so an icon row with no slack overflows by a pixel and wraps. Moving 2px per
+ * gap into the padding keeps the pill identical while leaving 6px the padding
+ * can give back before anything has to move.
  */
 export const ICON_SIZE = 20;
-export const ICON_GAP = 12;
+export const ICON_GAP = 10;
 export const ICON_COUNT = 4;
-export const ICON_PILL_PADDING_X = 15;
+export const ICON_PILL_PADDING_X = 18;
 
 /**
  * Logo pill geometry. The wordmark is 5:1, so 110px wide is 22px tall.
@@ -300,7 +308,7 @@ export function renderSignature(opts: {
 	 * Logo pill above, icon pill below — both 148×44.
 	 *
 	 * The widths agree by construction rather than by coincidence: the icon row
-	 * is four 20px icons with three 12px gaps (116px), and 15px of padding
+	 * is four 20px icons with three 10px gaps (110px), and 18px of padding
 	 * either side brings it to the logo pill's 148px. Change the icon count or
 	 * spacing and `ICON_PILL_PADDING_X` below is what needs recomputing.
 	 *
