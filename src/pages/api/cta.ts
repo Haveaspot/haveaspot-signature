@@ -8,6 +8,7 @@ import {
 	radius,
 	BUTTON_HEIGHT,
 	darkModePillSurface,
+	darkModeSurface,
 	darkModeDivider,
 	darkModeInk,
 	darkModeButtonSurface,
@@ -97,8 +98,70 @@ const CACHE_HEADERS = {
 	Expires: 'Wed, 11 Jan 1984 05:00:00 GMT',
 };
 
+/** JPEG quality. 85 is invisible on a photograph at this size. */
+const JPEG_QUALITY = 85;
+
 /**
- * Re-wrap an `ImageResponse` so our cache headers actually reach the client.
+ * No chroma subsampling.
+ *
+ * JPEG's default halves the resolution of colour information, which is fine for
+ * a photograph and poor for everything else in this image: the card is a hard
+ * 2px border against a flat background, with text and a coloured button on it.
+ * At 4:2:0 the rounded corners came out `#f9fff8` instead of white — a faint
+ * halo where the card meets the email. 4:4:4 lands them exactly on the
+ * background and costs about 38 KB, on an image that has already dropped from
+ * 953 KB to 159 KB.
+ */
+const JPEG_CHROMA = '4:4:4';
+
+/**
+ * Re-encode the rendered card as a JPEG.
+ *
+ * `ImageResponse` only emits PNG, which stores every pixel exactly. That is the
+ * right choice for a logo and the wrong one for a photograph: a banner carrying
+ * promo artwork came out at **953 KB**, and since the banner is deliberately
+ * uncacheable, every recipient downloaded that on every open. Mail clients
+ * paint a PNG as it arrives, so a slow connection showed the top of the card
+ * with no bottom edge until the rest landed. JPEG at quality 85 renders the
+ * same image at about 120 KB.
+ *
+ * `background` is the colour behind the card in the signature — white in light
+ * mode, the dark surface in dark mode — not the card's own fill. The card has
+ * rounded corners, and the pixels outside that radius are transparent so the
+ * email shows through. JPEG has no transparency, so those corners have to be
+ * painted, and this is the only colour that leaves the result identical. It is
+ * exact because light and dark are rendered as separate images.
+ *
+ * **Falls back to the PNG on any failure, including sharp failing to load.**
+ * The import is dynamic for that reason: these URLs sit in signatures that are
+ * already sent, so a module that throws on load would replace every banner in
+ * every inbox with a broken-image icon. A heavy banner is a far better failure
+ * than no banner.
+ */
+async function toJpeg(png: Buffer, background: string): Promise<Response> {
+	try {
+		const sharp = (await import('sharp')).default;
+		const jpeg = await sharp(png)
+			.flatten({ background })
+			.jpeg({ quality: JPEG_QUALITY, mozjpeg: true, chromaSubsampling: JPEG_CHROMA })
+			.toBuffer();
+
+		return new Response(new Uint8Array(jpeg), {
+			headers: { 'Content-Type': 'image/jpeg', ...CACHE_HEADERS },
+		});
+	} catch (error) {
+		console.error('[cta] JPEG encode failed, serving PNG', error);
+		return new Response(new Uint8Array(png), {
+			headers: { 'Content-Type': 'image/png', ...CACHE_HEADERS },
+		});
+	}
+}
+
+/**
+ * Turn a rendered `ImageResponse` into what actually goes down the wire.
+ *
+ * Two jobs, both of which have bitten this route before: re-encode as JPEG (see
+ * `toJpeg`), and make sure our cache headers are the ones that reach the client.
  *
  * `ImageResponse` sets its own `cache-control: public, immutable, no-transform,
  * max-age=31536000`, and passing `headers` does not replace it — the two are
@@ -116,14 +179,8 @@ const CACHE_HEADERS = {
  * The body is copied into a plain Response rather than mutating headers on the
  * original, because `headers.set()` leaves the concatenated value in place.
  */
-function withCacheHeaders(image: Response): Response {
-	return new Response(image.body, {
-		status: image.status,
-		headers: {
-			'Content-Type': image.headers.get('content-type') ?? 'image/png',
-			...CACHE_HEADERS,
-		},
-	});
+async function deliver(image: Response, background: string): Promise<Response> {
+	return toJpeg(Buffer.from(await image.arrayBuffer()), background);
 }
 
 function blankResponse(): Response {
@@ -205,6 +262,9 @@ export async function drawCta(
 	// The dark card must match the logo pill's fill exactly, since the two sit
 	// one above the other in the same signature.
 	const surface = dark ? darkModePillSurface : brand.white;
+	// What sits *behind* the card in the signature. Used to paint the rounded
+	// corners when the PNG is flattened to JPEG, which has no transparency.
+	const pageBackground = dark ? darkModeSurface : brand.white;
 	const borderColour = dark ? darkModeDivider : brand.ink;
 	const textColour = dark ? darkModeInk : brand.ink;
 	const buttonSurface = dark ? darkModeButtonSurface : brand.ink;
@@ -219,7 +279,7 @@ export async function drawCta(
 	if (section === 'promo' || config.promoOnly) {
 		if (!hasPromo) return blankResponse();
 
-		return withCacheHeaders(
+		return deliver(
 			new ImageResponse(
 				card(surface, borderColour, [
 					h('img', {
@@ -239,6 +299,7 @@ export async function drawCta(
 					headers: CACHE_HEADERS,
 				},
 			),
+			pageBackground,
 		);
 	}
 
@@ -256,7 +317,7 @@ export async function drawCta(
 		(hasPromo ? promoHeight + HEADING_GAP : 0) +
 		px(BUTTON_HEIGHT);
 
-	return withCacheHeaders(
+	return deliver(
 		new ImageResponse(
 			card(surface, borderColour, [
 				h(
@@ -317,6 +378,7 @@ export async function drawCta(
 			]),
 			{ width: WIDTH, height, fonts, headers: CACHE_HEADERS },
 		),
+		pageBackground,
 	);
 }
 

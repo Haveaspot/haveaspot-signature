@@ -227,6 +227,39 @@ clear.
 If you add another image route, wrap it the same way, and check the header on
 the deployed URL rather than trusting the code.
 
+### Why the banner is a JPEG
+
+`ImageResponse` only emits PNG, which stores every pixel exactly. Right for a
+logo, wrong for a photograph: a banner carrying promo artwork came out at
+**953 KB**, and since the image is deliberately uncacheable, every recipient
+downloaded that on every open. Mail clients paint an image as it arrives, so on
+a phone you saw the top of the card with no bottom edge until the rest landed —
+which looked like a rendering bug and was a download in progress.
+
+`toJpeg()` re-encodes it: **953 KB → 159 KB**, same dimensions, same 2x retina
+sharpness.
+
+Three things about it are load-bearing:
+
+**The corners have to be painted.** The card has rounded corners, and the pixels
+outside that radius are transparent so the email shows through. JPEG has no
+transparency, so they are flattened onto the colour *behind* the card in the
+signature — white in light mode, `darkModeSurface` in dark. Not the card's own
+fill. It is exact because light and dark render as separate images.
+
+**Chroma subsampling is off** (`4:4:4`). JPEG's default halves colour
+resolution, which is fine for a photograph and poor for a hard 2px border with
+text on it — the corners came out `#f9fff8` instead of white, a faint halo where
+the card meets the email. 4:4:4 costs about 38 KB and lands them exactly.
+
+**A failed encode falls back to the PNG**, and `sharp` is imported *dynamically*
+so that even a module that fails to load is caught. These URLs sit in signatures
+that are already sent: a route that throws replaces every banner in every inbox
+with a broken-image icon. A heavy banner is a far better failure than no banner.
+
+The transparent spacer served when there is no banner stays PNG. Flattening a
+1196x1 transparent image to JPEG would paint a visible bar across the signature.
+
 ## Admin area
 
 `/admin` is behind a single shared password in `ADMIN_PASSWORD`. Generate one

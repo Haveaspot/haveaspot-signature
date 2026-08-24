@@ -378,8 +378,7 @@ const ctaSource = readFileSync('src/pages/api/cta.ts', 'utf8');
  */
 checks.push([
 	'cta responses are re-wrapped so our cache header wins',
-	/function withCacheHeaders/.test(ctaSource) &&
-		!/return new ImageResponse/.test(ctaSource),
+	/async function deliver/.test(ctaSource) && !/return new ImageResponse/.test(ctaSource),
 ]);
 /**
  * These are the WordPress plugin's headers, kept because they are the reason it
@@ -396,6 +395,37 @@ checks.push([
 		/Pragma/.test(cacheBlock) && /Expires/.test(cacheBlock),
 	]);
 }
+
+/**
+ * The banner is re-encoded as JPEG because PNG stores a photograph losslessly —
+ * a promo banner came out at 953 KB, downloaded on every open since the image
+ * is deliberately uncacheable.
+ *
+ * The two things that must not regress: the encoder failing can never cost
+ * anyone their banner, and the transparent spacer must stay a PNG. Flattening
+ * that to JPEG would paint a visible bar across every signature that has no
+ * banner.
+ */
+checks.push([
+	'the card is re-encoded as JPEG',
+	/\.jpeg\(\{ quality: JPEG_QUALITY/.test(ctaSource),
+]);
+checks.push([
+	'a failed encode falls back to the PNG rather than failing',
+	/catch \(error\) \{[\s\S]{0,200}serving PNG/.test(ctaSource),
+]);
+checks.push([
+	'sharp is imported dynamically, so a load failure is catchable',
+	/await import\('sharp'\)/.test(ctaSource) && !/^import sharp/m.test(ctaSource),
+]);
+checks.push([
+	'the transparent spacer is never flattened to JPEG',
+	/function blankResponse[\s\S]{0,300}image\/png/.test(ctaSource),
+]);
+checks.push([
+	'chroma subsampling is off, so hard edges keep their colour',
+	/chromaSubsampling: JPEG_CHROMA/.test(ctaSource) && /'4:4:4'/.test(ctaSource),
+]);
 const spacerBase64 = ctaSource.match(/BLANK_PNG = Buffer\.from\(\s*'([^']+)'/)?.[1] ?? '';
 const spacerPng = Buffer.from(spacerBase64, 'base64');
 
