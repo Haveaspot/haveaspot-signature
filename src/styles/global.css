@@ -970,3 +970,59 @@ fieldset.group legend {
 .site-footer a:hover {
 	color: var(--accent-deep);
 }
+
+/* -----------------------------------------------------------------------------
+   Danger zone — irreversible actions, set apart from the page above.
+
+   Given its own top rule and generous space rather than being styled loud: the
+   guide has one red (--btn--danger's #b42318) and spending it on a whole panel
+   would make the destructive control harder to pick out, not easier.
+   ----------------------------------------------------------------------------- */
+
+.danger-zone {
+	margin-top: 3rem;
+	padding-top: 2rem;
+	border-top: 1px solid var(--border-light);
+}
+
+.danger-zone h2 {
+	margin-bottom: 0.5rem;
+}
+
+.danger-action {
+	display: flex;
+	gap: 1.5rem;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	padding: 1rem 0;
+	border-bottom: 1px solid var(--border-light);
+}
+
+.danger-action:last-child {
+	border-bottom: 0;
+}
+
+.danger-action strong {
+	display: block;
+	font-weight: 500;
+	color: var(--ink);
+}
+
+.danger-action .hint {
+	display: block;
+	margin-top: 0.25rem;
+}
+
+.danger-confirm {
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+}
+
+/* Sized to the word it asks for, so it reads as a confirmation rather than a
+   field waiting for a sentence. */
+.danger-confirm input {
+	width: 9rem;
+	margin: 0;
+}

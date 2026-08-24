@@ -7,6 +7,9 @@ import {
 	analyticsBreakdown,
 	analyticsTopStaff,
 	analyticsCampaigns,
+	totalClicks,
+	clicksOlderThan,
+	deleteClicks,
 } from '../../lib/admin-db';
 
 export const prerender = false;
@@ -14,15 +17,48 @@ export const prerender = false;
 /**
  * Click analytics.
  *
- * Everything is read-only and derived from the `clicks` table, which stores a
- * salted hash of the IP rather than the address itself — so "visitors" is a
- * count of distinct hashes, good enough to separate ten opens by one person
- * from ten people, without holding anything identifying.
+ * The figures are derived from the `clicks` table, which stores a salted hash
+ * of the IP rather than the address itself — so "visitors" is a count of
+ * distinct hashes, good enough to separate ten opens by one person from ten
+ * people, without holding anything identifying.
+ *
+ * The only write on this page is the delete at the bottom.
  */
 
 const PERIODS = [7, 30, 90] as const;
 const requested = Number(Astro.url.searchParams.get('days'));
 const days = (PERIODS as readonly number[]).includes(requested) ? requested : 30;
+
+/** The cutoff the retention delete uses. Fixed, not tied to the period switch:
+ *  the switch changes what you are looking at, and a delete that quietly
+ *  followed it would mean the same button removed a different span each time. */
+const RETENTION_DAYS = 90;
+
+let notice = '';
+let deleteError = '';
+
+if (Astro.request.method === 'POST') {
+	try {
+		const form = await Astro.request.formData();
+		const scope = String(form.get('scope'));
+
+		if (scope !== 'all' && scope !== 'older') throw new Error('Unknown delete scope.');
+
+		// Typed confirmation, checked server-side as well as in the browser, so
+		// the guard is not something a stray double-submit can skip.
+		if (scope === 'all' && String(form.get('confirm')).trim().toUpperCase() !== 'DELETE') {
+			throw new Error('Type DELETE to confirm clearing all click history.');
+		}
+
+		const removed = await deleteClicks(scope, RETENTION_DAYS);
+		notice =
+			removed === 0
+				? 'Nothing to delete — there were no matching clicks.'
+				: `Deleted ${removed.toLocaleString('en-GB')} click${removed === 1 ? '' : 's'}.`;
+	} catch (err) {
+		deleteError = err instanceof Error ? err.message : String(err);
+	}
+}
 
 let data: {
 	summary: Awaited<ReturnType<typeof analyticsSummary>>;
@@ -33,11 +69,13 @@ let data: {
 	countries: Awaited<ReturnType<typeof analyticsBreakdown>>;
 	staff: Awaited<ReturnType<typeof analyticsTopStaff>>;
 	campaigns: Awaited<ReturnType<typeof analyticsCampaigns>>;
+	total: number;
+	stale: number;
 } | null = null;
 let loadError = '';
 
 try {
-	const [summary, daily, assets, clients, devices, countries, staff, campaigns] =
+	const [summary, daily, assets, clients, devices, countries, staff, campaigns, total, stale] =
 		await Promise.all([
 			analyticsSummary(days),
 			analyticsDaily(days),
@@ -47,8 +85,10 @@ try {
 			analyticsBreakdown('country_code', days),
 			analyticsTopStaff(days),
 			analyticsCampaigns(days),
+			totalClicks(),
+			clicksOlderThan(RETENTION_DAYS),
 		]);
-	data = { summary, daily, assets, clients, devices, countries, staff, campaigns };
+	data = { summary, daily, assets, clients, devices, countries, staff, campaigns, total, stale };
 } catch (err) {
 	loadError = err instanceof Error ? err.message : String(err);
 }
@@ -102,6 +142,9 @@ function share(n: number, total: number): number {
 			</section>
 		) : !data ? null : (
 			<>
+				{notice && <p class="status status--ok">{notice}</p>}
+				{deleteError && <p class="status status--error">{deleteError}</p>}
+
 				<div class="stat-grid">
 					<div class="stat">
 						<span class="stat-value">{data.summary.clicks}</span>
@@ -296,6 +339,59 @@ function share(n: number, total: number): number {
 					Visitors are counted by a salted hash of the IP address — enough to tell ten opens by
 					one person from ten people, without storing anything identifying. Dates are UK local.
 				</p>
+
+				<section class="danger-zone">
+					<h2>Delete click history</h2>
+					<p class="footnote" style="margin-top:0">
+						There is no undo and no backup. Deleting clicks also empties the click counts
+						shown against staff and campaigns, because those are counted from this same
+						history rather than stored separately. Signatures already in people's inboxes
+						keep working and keep recording new clicks — this clears the record, not the
+						tracking.
+					</p>
+
+					<div class="danger-action">
+						<div>
+							<strong>Clear clicks older than {RETENTION_DAYS} days</strong>
+							<span class="hint">
+								{data.stale === 0
+									? 'Nothing is older than that yet.'
+									: `${data.stale.toLocaleString('en-GB')} of ${data.total.toLocaleString('en-GB')} clicks would go. Recent activity is kept.`}
+							</span>
+						</div>
+						<form method="POST" onsubmit={`return confirm('Delete ${data.stale} click${data.stale === 1 ? '' : 's'} older than ${RETENTION_DAYS} days? This cannot be undone.')`}>
+							<input type="hidden" name="scope" value="older" />
+							<button type="submit" class="btn btn--secondary btn--small" disabled={data.stale === 0}>
+								Delete old clicks
+							</button>
+						</form>
+					</div>
+
+					<div class="danger-action">
+						<div>
+							<strong>Clear all click history</strong>
+							<span class="hint">
+								{data.total === 0
+									? 'There is no click history to delete.'
+									: `All ${data.total.toLocaleString('en-GB')} clicks ever recorded, not just the ${days} days shown above.`}
+							</span>
+						</div>
+						<form method="POST" class="danger-confirm">
+							<input type="hidden" name="scope" value="all" />
+							<input
+								type="text"
+								name="confirm"
+								placeholder="Type DELETE"
+								autocomplete="off"
+								aria-label="Type DELETE to confirm"
+								disabled={data.total === 0}
+							/>
+							<button type="submit" class="btn btn--danger btn--small" disabled={data.total === 0}>
+								Delete everything
+							</button>
+						</form>
+					</div>
+				</section>
 			</>
 		)
 	}

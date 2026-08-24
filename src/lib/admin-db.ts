@@ -470,3 +470,56 @@ export async function analyticsCampaigns(days: number): Promise<CampaignClicks[]
 		ORDER BY clicks DESC
 	`;
 }
+
+/**
+ * Every click ever recorded, ignoring the dashboard's period filter.
+ *
+ * The delete controls need this because the dashboard only ever shows a window:
+ * someone looking at "7 days" and deleting everything should be told the real
+ * number going, not the one on screen.
+ */
+export async function totalClicks(): Promise<number> {
+	const rows = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM clicks`;
+	return rows[0]?.n ?? 0;
+}
+
+/** Clicks older than the cutoff — the count the retention delete would remove. */
+export async function clicksOlderThan(days: number): Promise<number> {
+	const rows = await sql<{ n: number }[]>`
+		SELECT count(*)::int AS n
+		FROM clicks
+		WHERE clicked_at <= now() - (${days} || ' days')::interval
+	`;
+	return rows[0]?.n ?? 0;
+}
+
+/**
+ * Delete click history. Irreversible — there is no soft delete and no archive.
+ *
+ * Two scopes, deliberately not one with a number attached: 'all' is the
+ * clear-the-decks case (test clicks before a rollout), 'older' is routine
+ * retention trimming. Anything more flexible would be a way to delete a
+ * surprising subset by mistake.
+ *
+ * Only the `clicks` table is touched. Every click figure elsewhere in the admin
+ * — a staff member's count, a campaign's performance — is a `count(*)` over
+ * this table rather than a stored total, so they all follow automatically and
+ * there is no counter left to drift out of step.
+ *
+ * Returns the number of rows removed so the caller can report what happened
+ * rather than guessing from the count it showed beforehand.
+ */
+export async function deleteClicks(
+	scope: 'all' | 'older',
+	days = 90,
+): Promise<number> {
+	const rows =
+		scope === 'all'
+			? await sql<{ id: number }[]>`DELETE FROM clicks RETURNING id`
+			: await sql<{ id: number }[]>`
+					DELETE FROM clicks
+					WHERE clicked_at <= now() - (${days} || ' days')::interval
+					RETURNING id
+				`;
+	return rows.length;
+}
