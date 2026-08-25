@@ -1,4 +1,4 @@
-import { logoRatioNote, ratioNote, deleteMedia, LOGO_RATIO } from '../src/lib/media.ts';
+import { logoRatioNote, ratioNote, deleteMedia, LOGO_RATIO, TARGET_RATIO } from '../src/lib/media.ts';
 import { LOGO_PILL_WIDTH, PILL_HEIGHT } from '../src/lib/signature-html.ts';
 
 /**
@@ -48,9 +48,17 @@ checks.push([
 	]);
 }
 
-// A banner, by contrast, really is cropped.
-checks.push(['a 3:1 banner gets no warning', ratioNote(1080, 360) === null]);
+// A banner, by contrast, really is cropped. Derived from the constant rather
+// than written out, so changing the promo shape does not silently strand this.
+checks.push([
+	`artwork at the target ratio gets no warning (${TARGET_RATIO}:1)`,
+	ratioNote(1080, Math.round(1080 / TARGET_RATIO)) === null,
+]);
 checks.push(['a square banner is warned about cropping', /crop/i.test(ratioNote(600, 600) ?? '')]);
+checks.push([
+	'the warning quotes the live ratio',
+	(ratioNote(600, 600) ?? '').includes(`${TARGET_RATIO}:1`),
+]);
 
 // --- Delete guard -----------------------------------------------------------
 

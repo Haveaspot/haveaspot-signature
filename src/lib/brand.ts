@@ -56,6 +56,25 @@ export const radius = {
 export const BUTTON_HEIGHT = 44;
 
 /**
+ * The aspect ratio the CTA renderer composites promo artwork at.
+ *
+ * Was 3:1, which made the photo 180px tall in a 356px banner — half the block,
+ * and nearly twice the height of the header identifying the sender. Feedback
+ * before rollout was that the promo ran too long, so it is 4:1.
+ *
+ * Lives here rather than in the renderer because the upload guidance, the
+ * preview thumbnails and the docs all quote it, and ten hand-written "3:1"s
+ * would drift apart the first time one changed.
+ */
+export const PROMO_RATIO = 4;
+
+/** How the ratio is written in the interface, derived so it cannot disagree. */
+export const PROMO_RATIO_LABEL = `${PROMO_RATIO}:1`;
+
+/** The size to produce artwork at: full banner width at 2x, for retina. */
+export const PROMO_ARTWORK_SIZE = `1080×${Math.round(1080 / PROMO_RATIO)}`;
+
+/**
  * Poppins is not available in email clients, so the signature always ships a
  * fallback stack. Arial is the safest universal metric-compatible fallback.
  */

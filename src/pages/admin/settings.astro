@@ -4,7 +4,7 @@ import { getSettings, setSetting, SETTING_DEFAULTS } from '../../lib/settings';
 import type { SettingKey } from '../../lib/settings';
 import ImageField from '../../components/ImageField.astro';
 import CtaPreview from '../../components/CtaPreview.astro';
-import { listMedia, isConfigured } from '../../lib/media';
+import { listMedia, isConfigured, PROMO_RATIO_LABEL, PROMO_ARTWORK_SIZE } from '../../lib/media';
 
 export const prerender = false;
 
@@ -38,7 +38,7 @@ const FIELDS: {
 	{
 		key: 'promo_image_url',
 		label: 'Promo banner image',
-		hint: 'Optional. Produce at 3:1 — 1080×360 works well. Other ratios are cropped, not letterboxed.',
+		hint: `Optional. Produce at ${PROMO_RATIO_LABEL} — ${PROMO_ARTWORK_SIZE} works well. Other ratios are cropped, not letterboxed.`,
 		type: 'url',
 	},
 	{

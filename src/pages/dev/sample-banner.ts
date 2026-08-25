@@ -11,7 +11,7 @@ export const prerender = false;
  * Exists so the preview can show how a campaign banner sits inside the CTA
  * card without anyone having to produce real artwork first. It draws its own
  * dimensions onto itself, which makes the cropping behaviour visible: the
- * renderer composites promo art at 3:1, so a banner supplied at another ratio
+ * renderer composites promo art at PROMO_RATIO, so a banner supplied at another ratio
  * is cover-cropped rather than letterboxed.
  *
  * `?w=` and `?h=` set the source dimensions, so the preview can show both a

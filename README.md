@@ -172,8 +172,8 @@ database — `/dev/cta` draws the same artwork as `/api/cta` without one, and
 `?images=prod` points everything at the live site instead, for comparison.
 
 One of the promo variants is deliberately 16:9 to show the cover-crop: the
-renderer composites promo art at 3:1 and crops rather than letterboxing, so
-banners want producing at **3:1** (1080×360 works well).
+renderer composites promo art at `PROMO_RATIO` and crops rather than
+letterboxing, so banners want producing at **4:1** (1080×270 works well).
 
 The dark panes re-emit the signature's own rules via `darkRulesCss('.force-dark ')`
 rather than keeping a copy, so the preview cannot drift from what really lands in
@@ -263,6 +263,39 @@ Note that Vercel serves every static asset here as `max-age=0, must-revalidate`
 override it, because the adapter uses the Build Output API. That is a
 revalidation round trip rather than a re-download, so it is a cost rather than a
 fault; the URL churn above was the real problem.
+
+### The promo shape, and where the banner's height goes
+
+`PROMO_RATIO` in `src/lib/brand.ts` is the single source of truth for the promo
+image's aspect ratio. The upload guidance, the preview thumbnails, the warning
+text and the docs all derive from it — it was written out as a literal "3:1" in
+ten places, which is exactly the drift this codebase keeps trying to avoid.
+
+It is **4:1**. It was 3:1, which put the photo at 180px in a 356px banner: half
+the block, and nearly twice the height of the header identifying the sender.
+Feedback before rollout was that the promo ran too long.
+
+Where the height goes now, in the pixels a recipient sees:
+
+| | |
+|---|---|
+| bleed | 8 |
+| border | 4 |
+| padding (22 top and bottom) | 44 |
+| heading, one line | 24 |
+| gap | 16 |
+| promo photo (4:1) | 133 |
+| gap | 16 |
+| button | 44 |
+| **total** | **294** (was 356) |
+
+Without a photo it is 140px. The padding and gaps were tightened at the same
+time — on their own they are worth only 20px, so the ratio is the real lever;
+together they take 17% off.
+
+Artwork is **cover-cropped, not letterboxed**, so images produced at the old 3:1
+still work — they lose a little top and bottom rather than gaining bars. Worth
+re-cropping eventually, but nothing breaks in the meantime.
 
 ### The 600px floor on the outer table
 
@@ -541,7 +574,7 @@ The URLs are public, though not for the obvious reason: mail clients never fetch
 them. Promo art is composited *into* the CTA PNG server-side, so it is this app
 that reads the blob and the recipient only ever sees the rendered card.
 
-Dimensions are read from the file header on upload to warn about the 3:1 crop
+Dimensions are read from the file header on upload to warn about the crop
 before someone finds out from a rendered signature. SVG is rejected — Satori
 cannot rasterise it.
 

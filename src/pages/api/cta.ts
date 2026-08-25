@@ -13,6 +13,7 @@ import {
 	darkModeInk,
 	darkModeButtonSurface,
 	darkModeButtonLabel,
+	PROMO_RATIO,
 } from '../../lib/brand';
 import { h, loadFonts, estimateLines, headingLines } from '../../lib/og';
 
@@ -47,7 +48,7 @@ const SCALE = 2;
 const px = (value: number) => value * SCALE;
 
 const WIDTH = px(DISPLAY_WIDTH);
-const PADDING = px(28);
+const PADDING = px(22);
 const BORDER = px(2);
 
 /**
@@ -76,7 +77,7 @@ const CONTENT_WIDTH = WIDTH - BORDER * 2 - PADDING * 2;
 
 const HEADING_SIZE = px(16);
 const HEADING_LINE = px(24);
-const HEADING_GAP = px(20);
+const HEADING_GAP = px(16);
 const BUTTON_FONT = px(15);
 
 /**
@@ -319,9 +320,10 @@ export async function drawCta(
 	const buttonLabel = dark ? darkModeButtonLabel : brand.white;
 
 	const hasPromo = !config.disablePromo && Boolean(config.promoImageUrl);
-	// Promo art is assumed 3:1. The admin upload should enforce that, or this
-	// should read the real dimensions.
-	const promoHeight = hasPromo ? Math.round(CONTENT_WIDTH / 3) : 0;
+	// Cover-cropped to PROMO_RATIO rather than letterboxed, so artwork supplied
+	// at another shape loses its edges rather than gaining bars. The upload warns
+	// about that; it does not enforce it.
+	const promoHeight = hasPromo ? Math.round(CONTENT_WIDTH / PROMO_RATIO) : 0;
 
 	// --- Promo alone -----------------------------------------------------------
 	if (section === 'promo' || config.promoOnly) {

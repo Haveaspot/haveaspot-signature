@@ -1,6 +1,6 @@
 ---
 import type { MediaItem, MediaKind } from '../lib/media';
-import { LOGO_SIZE, LOGO_SIZE_2X } from '../lib/media';
+import { LOGO_SIZE, LOGO_SIZE_2X, PROMO_RATIO_LABEL, PROMO_ARTWORK_SIZE } from '../lib/media';
 
 interface Props {
 	name: string;
@@ -73,7 +73,10 @@ const isLogo = kind === 'logo';
 					background baked into the image. Other ratios are squashed to fit, not cropped.
 				</>
 			) : (
-				<> Produce at 3:1 — 1080×360 works well. Other ratios are cropped.</>
+				<>
+					{' '}Produce at <strong>{PROMO_RATIO_LABEL}</strong> — {PROMO_ARTWORK_SIZE} works well.
+					Other ratios are cropped.
+				</>
 			)
 		}
 	</span>

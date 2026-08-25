@@ -10,6 +10,8 @@ import {
 	logoRatioNote,
 	LOGO_SIZE,
 	LOGO_SIZE_2X,
+	PROMO_RATIO_LABEL,
+	PROMO_ARTWORK_SIZE,
 	MAX_BYTES,
 	MediaNotConfigured,
 } from '../../lib/media';
@@ -25,7 +27,7 @@ export const prerender = false;
  * been uploaded rather than an empty box.
  *
  * The two kinds are listed and stored separately because they are different
- * shapes with different failure modes — a banner is cropped to 3:1, a logo is
+ * shapes with different failure modes — a banner is cover-cropped, a logo is
  * squashed into the 148×44 pill — and a single picker offering both would
  * invite putting one where the other belongs.
  */
@@ -68,7 +70,7 @@ if (Astro.request.method === 'POST') {
 					? `${dims.width}×${dims.height}. ${note} ${
 							kind === 'logo'
 								? `Logos work best at ${LOGO_SIZE} (${LOGO_SIZE_2X} for retina).`
-								: 'Banners work best at 3:1 — 1080×360.'
+								: `Banners work best at ${PROMO_RATIO_LABEL} — ${PROMO_ARTWORK_SIZE}.`
 						}`
 					: '';
 			}
@@ -196,9 +198,9 @@ const SECTIONS = [
 										</>
 									) : (
 										<>
-											Produce at <strong>3:1</strong> — 1080×360 works well. Other ratios are
-											cropped to fit rather than letterboxed, and you will be told if that
-											applies.
+											Produce at <strong>{PROMO_RATIO_LABEL}</strong> — {PROMO_ARTWORK_SIZE} works
+											well. Other ratios are cropped to fit rather than letterboxed, and you will
+											be told if that applies.
 										</>
 									)}
 								</p>

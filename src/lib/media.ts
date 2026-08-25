@@ -1,6 +1,7 @@
 import { put, del, list } from '@vercel/blob';
 import { env } from './env';
 import { LOGO_PILL_WIDTH, PILL_HEIGHT } from './signature-html';
+import { PROMO_RATIO, PROMO_RATIO_LABEL, PROMO_ARTWORK_SIZE } from './brand';
 
 /**
  * Uploaded artwork — campaign banners and logo overrides.
@@ -24,7 +25,7 @@ import { LOGO_PILL_WIDTH, PILL_HEIGHT } from './signature-html';
  * Banners and logos are kept apart.
  *
  * Not tidiness: they are different shapes with different rules, and a picker
- * that offered both would invite putting a 1080×360 banner where a 148×44 pill
+ * that offered both would invite putting a 1080×270 banner where a 148×44 pill
  * belongs. Separate prefixes also mean the delete guard stays exact.
  */
 export type MediaKind = 'banner' | 'logo';
@@ -43,7 +44,7 @@ const ALLOWED = new Map<string, string>([
 ]);
 
 /**
- * 4MB. Generous for a 1080×360 banner and small enough that a stray
+ * 4MB. Generous for a 1080×270 banner and small enough that a stray
  * multi-megapixel photo is rejected before it is stored — the renderer would
  * have to download it on every cache miss.
  */
@@ -192,7 +193,10 @@ export function readDimensions(buf: Uint8Array): { width: number; height: number
 }
 
 /** The ratio the CTA renderer composites promo art at. */
-export const TARGET_RATIO = 3;
+export const TARGET_RATIO = PROMO_RATIO;
+
+/** Re-exported so callers need only one import for the shape and its wording. */
+export { PROMO_RATIO_LABEL, PROMO_ARTWORK_SIZE };
 
 /**
  * The logo's ratio, taken from the pill geometry rather than written down
@@ -208,8 +212,8 @@ export function ratioNote(width: number, height: number): string | null {
 	const ratio = width / height;
 	if (Math.abs(ratio - TARGET_RATIO) < 0.08) return null;
 	return ratio > TARGET_RATIO
-		? 'Wider than 3:1 — the left and right edges will be cropped.'
-		: 'Taller than 3:1 — the top and bottom will be cropped.';
+		? `Wider than ${PROMO_RATIO_LABEL} — the left and right edges will be cropped.`
+		: `Taller than ${PROMO_RATIO_LABEL} — the top and bottom will be cropped.`;
 }
 
 /**
