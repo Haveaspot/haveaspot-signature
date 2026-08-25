@@ -77,21 +77,6 @@ h3 {
 	margin: 0 0 2.5rem;
 }
 
-/*
- * A page's own standfirst runs the full width; a lede inside a header does not.
- *
- * The 60ch measure is right where a lede sits above narrow content, which is
- * the admin case — it keeps the line length readable against a table or a form.
- * On the generator the standfirst sits above a two-column layout and stopping
- * it at 60ch left an odd ragged block against the width of everything below.
- *
- * Scoped by position rather than by a modifier class: a lede that is a direct
- * child of the page is the page's own, and the admin's lives inside
- * `.admin-header`.
- */
-.page > .lede {
-	max-width: none;
-}
 
 /* --- Layout --------------------------------------------------------------- */
 
@@ -1157,6 +1142,15 @@ fieldset.group legend {
 	background: var(--surface);
 	border: 1px solid var(--border-light);
 	border-radius: var(--radius-card);
+}
+
+/*
+ * The generator's standfirst uses the same card, but it opens the page rather
+ * than closing one, so it does not want the 2.5rem of separation that a note
+ * following a section of content does.
+ */
+.notes--intro {
+	margin: 1.25rem 0 2.5rem;
 }
 
 .notes h2 {
