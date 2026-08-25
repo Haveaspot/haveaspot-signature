@@ -77,6 +77,22 @@ h3 {
 	margin: 0 0 2.5rem;
 }
 
+/*
+ * A page's own standfirst runs the full width; a lede inside a header does not.
+ *
+ * The 60ch measure is right where a lede sits above narrow content, which is
+ * the admin case — it keeps the line length readable against a table or a form.
+ * On the generator the standfirst sits above a two-column layout and stopping
+ * it at 60ch left an odd ragged block against the width of everything below.
+ *
+ * Scoped by position rather than by a modifier class: a lede that is a direct
+ * child of the page is the page's own, and the admin's lives inside
+ * `.admin-header`.
+ */
+.page > .lede {
+	max-width: none;
+}
+
 /* --- Layout --------------------------------------------------------------- */
 
 .page {
