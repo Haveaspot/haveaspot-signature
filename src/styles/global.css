@@ -878,17 +878,24 @@ fieldset.group legend {
 	max-width: 460px;
 }
 
+/*
+ * Title on the left, page actions on the right. The standfirst is not in here —
+ * it sits below, so it can run the page width instead of the width left over
+ * beside the actions.
+ */
 .admin-header {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 1rem;
-	align-items: flex-start;
+	align-items: center;
 	justify-content: space-between;
-	margin-bottom: 2rem;
+	margin-bottom: 0.5rem;
 }
 
-.admin-header .lede {
-	margin-bottom: 0;
+/* Full page width, and carrying the separation the header row gave up. */
+.admin-lede {
+	max-width: none;
+	margin: 0 0 2rem;
 }
 
 .stat-grid {
