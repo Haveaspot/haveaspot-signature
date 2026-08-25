@@ -180,7 +180,26 @@ const isExternal = value !== '' && !media.some((m) => m.url === value);
 		const libraryUrls = new Set(choices.map((c) => c.value));
 
 		/**
-		 * The hidden URL input is the single source of truth — it is what submits.
+		 * Change the value the way a person typing would.
+		 *
+		 * Assigning to `input.value` in script fires no event, so anything else
+		 * listening to the form never learns of it — and the live banner preview on
+		 * these pages listens for `input`/`change`. Picking a thumbnail happened to
+		 * work, because the radio's own change event bubbles to the form; pressing
+		 * Clear did not, because a click is neither. The preview kept showing a
+		 * banner that had just been removed.
+		 *
+		 * Dispatching here rather than relying on that means neither path depends
+		 * on which listener happens to run first.
+		 */
+		function setValue(url: string) {
+			input!.value = url;
+			sync();
+			input!.dispatchEvent(new Event('input', { bubbles: true }));
+		}
+
+		/**
+		 * The URL input is the single source of truth — it is what submits.
 		 * Everything else reflects it, so a value set by the picker, typed by hand,
 		 * or restored on load all end in the same state.
 		 */
@@ -206,11 +225,10 @@ const isExternal = value !== '' && !media.some((m) => m.url === value);
 		choices.forEach((choice) =>
 			choice.addEventListener('change', () => {
 				if (!choice.checked) return;
-				input!.value = choice.value;
 				// Picking from the library supersedes a pasted URL, so fold the row
 				// away again rather than leaving a stale address on screen.
 				urlRow!.hidden = true;
-				sync();
+				setValue(choice.value);
 			}),
 		);
 
@@ -220,9 +238,8 @@ const isExternal = value !== '' && !media.some((m) => m.url === value);
 		});
 
 		clearBtn?.addEventListener('click', () => {
-			input!.value = '';
 			urlRow!.hidden = true;
-			sync();
+			setValue('');
 		});
 
 		input.addEventListener('input', sync);
