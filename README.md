@@ -565,10 +565,22 @@ Blob rather than the filesystem because serverless functions have no persistent
 disk, and rather than Postgres because a database is the wrong place for binary
 image data.
 
-**Uploads are additive, not required.** Every banner field still accepts a
-pasted URL, and the field falls back to a plain URL box when no store is
-connected or the library cannot be read — so a blob problem can never block
-editing a campaign.
+**You pick a picture from pictures.** `ImageField.astro` shows the library as
+thumbnails, not as a `<select>` of stored filenames — those carry the random
+suffix the blob store appends so two people uploading `banner.png` do not
+overwrite each other, which is a storage detail with no business in the
+interface. Names are shown with that suffix stripped for display only; the
+stored path is untouched.
+
+**Uploads are additive, not required.** Every image field still accepts a pasted
+URL, folded behind "paste a URL instead" so the exception does not dominate the
+control, and opened automatically when the stored value points outside the
+library. With no store connected the field falls back to a plain URL box with no
+toggle — hiding the only usable control would be a way to break the field — so a
+blob problem can never block editing a campaign.
+
+Whatever the route, one input submits one URL, and nothing downstream knows
+where it came from.
 
 The URLs are public, though not for the obvious reason: mail clients never fetch
 them. Promo art is composited *into* the CTA PNG server-side, so it is this app

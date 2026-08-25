@@ -846,19 +846,142 @@ fieldset.group legend {
 
 /* --- Banner picker -------------------------------------------------------- */
 
-.banner-field .banner-picker {
+/* --- Image field ---------------------------------------------------------- */
+
+/*
+ * Choosing a picture from pictures rather than from a list of filenames. The
+ * thumbnails are both the control and the preview, so what you pick and what
+ * you are looking at are the same thing in the same place.
+ */
+.image-field__label {
+	display: block;
+	font-weight: 500;
+	font-size: 0.875rem;
+	margin-bottom: 0.35rem;
+}
+
+.image-picker {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+	gap: 0.75rem;
+	margin-bottom: 0.75rem;
+}
+
+.image-choice {
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+	padding: 0.5rem;
+	border: 1px solid var(--border-light);
+	border-radius: var(--radius-card);
+	cursor: pointer;
+	transition: border-color var(--transition-base), transform var(--transition-base);
+}
+
+.image-choice:hover {
+	border-color: var(--accent);
+	transform: translateY(-2px);
+}
+
+/*
+ * The radio itself is hidden but focusable, so the group stays keyboard- and
+ * screen-reader-navigable while the artwork does the work visually.
+ */
+.image-choice input {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.image-choice:has(input:focus-visible) {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+/* Two pixels of ink, matching the brand's selected state on cards. */
+.image-choice.is-selected {
+	border-color: var(--accent);
+	box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.image-choice__art {
+	display: block;
+	width: 100%;
+	aspect-ratio: 4 / 1;
+	object-fit: cover;
+	border-radius: var(--radius-button);
+	background: var(--surface);
+}
+
+/* Logo artwork carries the pill's own proportions rather than the banner's, so
+   what the field shows is the shape the signature will actually render — a logo
+   about to be squashed looks squashed here. */
+.image-choice__art--logo {
+	aspect-ratio: 148 / 44;
+	object-fit: contain;
+}
+
+.image-choice__name {
+	font-weight: 300;
+	font-size: 0.75rem;
+	line-height: 1.3;
+	color: var(--ink);
+	word-break: break-word;
+}
+
+.image-field__row {
+	display: flex;
+	gap: 0.75rem;
+	align-items: center;
 	margin-bottom: 0.5rem;
 }
 
-.banner-field .banner-thumb {
+/* A text button for a secondary escape hatch — it should not compete with the
+   artwork above it, so it is not given a button's weight. */
+.link-button {
+	appearance: none;
+	background: none;
+	border: 0;
+	padding: 0;
+	font-family: var(--font);
+	font-weight: 500;
+	font-size: 0.8125rem;
+	color: var(--ink);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	cursor: pointer;
+}
+
+.link-button:hover {
+	color: var(--accent-deep);
+}
+
+.image-field__url {
+	margin-bottom: 0.5rem;
+}
+
+.image-field__url input {
+	width: 100%;
+}
+
+.image-field__external {
 	display: block;
-	margin-top: 0.6rem;
+	margin-bottom: 0.5rem;
 	max-width: 320px;
 	width: 100%;
 	aspect-ratio: 4 / 1;
 	object-fit: cover;
 	border: 1px solid var(--border-light);
 	border-radius: var(--radius-button);
+}
+
+.image-field__external--logo {
+	max-width: 296px;
+	aspect-ratio: 148 / 44;
+	object-fit: contain;
+	background: var(--surface);
 }
 
 .status--warn {
@@ -1111,18 +1234,6 @@ fieldset.group legend {
 	vertical-align: super;
 	cursor: help;
 	opacity: 0.6;
-}
-
-/*
- * Logo thumbnails carry the pill's own proportions (148:44) rather than the
- * banner's 3:1, so what the field previews is the shape the signature will
- * actually render — a logo that is about to be squashed looks squashed here.
- */
-.banner-thumb--logo {
-	max-width: 296px;
-	aspect-ratio: 148 / 44;
-	object-fit: contain;
-	background: var(--surface);
 }
 
 .media-item--logo img {

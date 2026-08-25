@@ -22,46 +22,129 @@ const {
 } = Astro.props;
 
 /**
- * An image field: pick from the library, or paste a URL.
+ * An image field: choose from the library, or paste a URL.
  *
- * Both are offered rather than replacing the URL box, because the field has to
- * keep working for artwork hosted elsewhere — and because it must not become
- * unusable if the blob store is ever disconnected. The picker writes into the
- * same input, so what gets submitted is a URL either way and nothing
- * downstream needs to know where it came from.
+ * You are picking a picture, so the pictures are the control. This was a
+ * `<select>` listing stored filenames — including the random suffix the blob
+ * store appends so two people uploading `banner.png` do not overwrite each
+ * other. That suffix is a storage detail that had no business in the
+ * interface, and past three or four banners nobody could tell which was which.
  *
- * The thumbnail updates from whatever the input holds, so a pasted URL is
- * previewed too, not just a picked one.
+ * The URL box is still here, because the field has to keep working for artwork
+ * hosted elsewhere and must not become unusable if the blob store is ever
+ * disconnected. It is folded away instead of removed: it is the exception, and
+ * it was previously the largest thing in the section, showing an unreadable
+ * percent-encoded blob URL that nobody needs to read.
+ *
+ * Everything still submits a plain URL in one input, so nothing downstream
+ * knows or cares where it came from.
  *
  * One component for banners and logos rather than two: the picker, the URL
- * fallback and the live thumbnail are identical, and only the shape and the
- * advice differ. Two copies of this script would drift.
+ * fallback and the preview are identical, and only the shape and the advice
+ * differ. Two copies of this would drift.
  */
 const id = `${kind}-${name}`;
 const isLogo = kind === 'logo';
+
+/**
+ * The name without the store's random suffix.
+ *
+ * `addRandomSuffix` appends a hyphen and a long alphanumeric run before the
+ * extension. Matching only a run of 16 or more leaves ordinary hyphenated names
+ * ("autumn-venues.png") alone; a name that genuinely ends in a long token is
+ * possible but not worth guarding against, since this is display only — the
+ * stored path is untouched.
+ */
+function displayName(filename: string): string {
+	return filename.replace(/-[A-Za-z0-9]{16,}(\.[A-Za-z0-9]+)$/, '$1');
+}
+
+const hasLibrary = configured && media.length > 0;
+
+/**
+ * Whether the stored value points outside the library.
+ *
+ * Decides whether the URL row starts open: artwork hosted elsewhere has to be
+ * visible and editable, while a library pick is already shown as a selected
+ * thumbnail and needs no address on screen. Checking the scheme is not enough —
+ * library URLs are `https://…` too.
+ */
+const isExternal = value !== '' && !media.some((m) => m.url === value);
 ---
 
-<div class="field banner-field" data-banner-field>
-	<label for={id}>{label}</label>
+<div class="field image-field" data-image-field>
+	<span class="image-field__label">{label}</span>
 
 	{
-		configured && media.length > 0 && (
-			<select class="banner-picker" aria-label={`Choose an uploaded ${kind}`}>
-				<option value="">Choose from the library…</option>
-				{media.map((m) => <option value={m.url}>{m.filename}</option>)}
-			</select>
+		hasLibrary && (
+			<div class="image-picker" role="radiogroup" aria-label={`Choose an uploaded ${kind}`}>
+				{media.map((m) => (
+					<label class="image-choice">
+						<input type="radio" name={`${id}-choice`} value={m.url} checked={m.url === value} />
+						<img
+							src={m.url}
+							alt={displayName(m.filename)}
+							loading="lazy"
+							class={isLogo ? 'image-choice__art image-choice__art--logo' : 'image-choice__art'}
+						/>
+						<span class="image-choice__name">{displayName(m.filename)}</span>
+					</label>
+				))}
+			</div>
 		)
 	}
 
-	<input id={id} name={name} type="url" value={value} placeholder="https://…" />
+	<div class="image-field__row">
+		{
+			hasLibrary && (
+				<button type="button" class="btn btn--secondary btn--small" data-clear hidden>
+					Clear
+				</button>
+			)
+		}
+		{
+			/*
+			 * Only offered when there is a library to choose instead. Without one
+			 * the URL box is the whole control, and a toggle that hides it would be
+			 * a way to make the field unusable.
+			 */
+			hasLibrary && (
+				<button type="button" class="link-button" data-url-toggle>
+					Paste a URL instead
+				</button>
+			)
+		}
+	</div>
+
+	<!--
+		Kept in the DOM rather than rendered conditionally: it is the one input
+		that submits, so it has to exist whether or not the URL row is showing.
+	-->
+	<div class="image-field__url" data-url-row hidden={hasLibrary && !isExternal}>
+		<label for={id} class="sr-only">{label} URL</label>
+		<input id={id} name={name} type="url" value={value} placeholder="https://…" />
+	</div>
+
+	{
+		/*
+		 * Shown only when the URL points somewhere the picker cannot: artwork
+		 * hosted elsewhere. A library image is already visible as its own
+		 * thumbnail above, so previewing it again would be the same picture twice.
+		 */
+	}
+	<img
+		class={isLogo ? 'image-field__external image-field__external--logo' : 'image-field__external'}
+		alt=""
+		hidden
+	/>
 
 	<span class="hint">
 		{
-			configured
-				? media.length > 0
-					? 'Pick one above, or paste a URL. '
-					: 'Nothing uploaded yet — '
-				: ''
+			hasLibrary
+				? ''
+				: configured
+					? 'Nothing uploaded yet — '
+					: ''
 		}
 		<a href={isLogo ? '/admin/media#logos' : '/admin/media'}>
 			{configured ? (isLogo ? 'Manage logos' : 'Manage banners') : 'Set up uploads'}
@@ -80,38 +163,70 @@ const isLogo = kind === 'logo';
 			)
 		}
 	</span>
-
-	<img class={isLogo ? 'banner-thumb banner-thumb--logo' : 'banner-thumb'} alt="" hidden />
 </div>
 
 <script>
 	// Wired per-field rather than globally, so several can sit on one page.
-	document.querySelectorAll<HTMLElement>('[data-banner-field]').forEach((field) => {
+	document.querySelectorAll<HTMLElement>('[data-image-field]').forEach((field) => {
 		const input = field.querySelector<HTMLInputElement>('input[type="url"]');
-		const picker = field.querySelector<HTMLSelectElement>('.banner-picker');
-		const thumb = field.querySelector<HTMLImageElement>('.banner-thumb');
-		if (!input || !thumb) return;
+		const choices = [...field.querySelectorAll<HTMLInputElement>('.image-choice input')];
+		const urlRow = field.querySelector<HTMLElement>('[data-url-row]');
+		const urlToggle = field.querySelector<HTMLButtonElement>('[data-url-toggle]');
+		const clearBtn = field.querySelector<HTMLButtonElement>('[data-clear]');
+		const external = field.querySelector<HTMLImageElement>('.image-field__external');
+		// urlToggle is absent when there is no library to toggle back to.
+		if (!input || !urlRow || !external) return;
 
-		const sync = () => {
-			const url = input.value.trim();
-			// Only preview http(s): a data: or javascript: value has no business
-			// being loaded here even though the field is admin-only.
-			const ok = /^https?:\/\//i.test(url);
-			thumb.hidden = !ok;
-			if (ok && thumb.src !== url) thumb.src = url;
-			// Keep the select in step when the URL is edited by hand.
-			if (picker) picker.value = [...picker.options].some((o) => o.value === url) ? url : '';
-		};
+		const libraryUrls = new Set(choices.map((c) => c.value));
 
-		picker?.addEventListener('change', () => {
-			if (picker.value) {
-				input.value = picker.value;
+		/**
+		 * The hidden URL input is the single source of truth — it is what submits.
+		 * Everything else reflects it, so a value set by the picker, typed by hand,
+		 * or restored on load all end in the same state.
+		 */
+		function sync() {
+			const url = input!.value.trim();
+			const fromLibrary = libraryUrls.has(url);
+
+			choices.forEach((c) => {
+				c.checked = c.value === url;
+				c.closest('.image-choice')?.classList.toggle('is-selected', c.checked);
+			});
+
+			if (clearBtn) clearBtn.hidden = url === '';
+
+			// Only preview artwork the picker cannot show. Guard the scheme: a
+			// data: or javascript: value has no business being loaded, even on an
+			// admin-only page.
+			const showExternal = !fromLibrary && /^https?:\/\//i.test(url);
+			external!.hidden = !showExternal;
+			if (showExternal && external!.src !== url) external!.src = url;
+		}
+
+		choices.forEach((choice) =>
+			choice.addEventListener('change', () => {
+				if (!choice.checked) return;
+				input!.value = choice.value;
+				// Picking from the library supersedes a pasted URL, so fold the row
+				// away again rather than leaving a stale address on screen.
+				urlRow!.hidden = true;
 				sync();
-			}
+			}),
+		);
+
+		urlToggle?.addEventListener('click', () => {
+			urlRow!.hidden = !urlRow!.hidden;
+			if (!urlRow!.hidden) input!.focus();
+		});
+
+		clearBtn?.addEventListener('click', () => {
+			input!.value = '';
+			urlRow!.hidden = true;
+			sync();
 		});
 
 		input.addEventListener('input', sync);
-		thumb.addEventListener('error', () => (thumb.hidden = true));
+		external.addEventListener('error', () => (external!.hidden = true));
 		sync();
 	});
 </script>
